@@ -1,0 +1,7 @@
+project_id = "ymbgmsvmesejppjgothe"
+
+[functions.omniagent-chat]
+verify_jwt = false
+
+[functions.omniagent-action]
+verify_jwt = false
