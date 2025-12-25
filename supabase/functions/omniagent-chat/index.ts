@@ -4,21 +4,11 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 // ===========================================
-// CORS CONFIGURATION - Environment-based origins
+// CORS CONFIGURATION
 // ===========================================
-const PRODUCTION_ORIGINS = ['https://ymbgmsvmesejppjgothe.lovableproject.com'];
-const DEV_ORIGINS = ['http://localhost:5173', 'http://localhost:8080', 'http://localhost:3000'];
-const ALLOWED_ORIGINS = Deno.env.get('ENVIRONMENT') === 'production' 
-  ? PRODUCTION_ORIGINS 
-  : [...PRODUCTION_ORIGINS, ...DEV_ORIGINS];
-
-const getCorsHeaders = (origin: string | null) => {
-  const allowedOrigin = origin && ALLOWED_ORIGINS.includes(origin) ? origin : PRODUCTION_ORIGINS[0];
-  return {
-    'Access-Control-Allow-Origin': allowedOrigin,
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-    'Access-Control-Allow-Credentials': 'true',
-  };
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
 // ===========================================
@@ -620,9 +610,6 @@ const verifySessionOwnership = async (
 };
 
 serve(async (req) => {
-  const origin = req.headers.get('Origin');
-  const corsHeaders = getCorsHeaders(origin);
-
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -1081,7 +1068,7 @@ Write a brief, professional completion report. Tell the user what was accomplish
       JSON.stringify({ 
         error: "I apologize, but I encountered an issue. Please try again." 
       }),
-      { status: 500, headers: { ...getCorsHeaders(req.headers.get('Origin')), "Content-Type": "application/json" } }
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });
