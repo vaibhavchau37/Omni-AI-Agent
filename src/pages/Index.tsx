@@ -7,13 +7,16 @@ import { AnalyticsDashboard } from "@/components/chat/AnalyticsDashboard";
 import { VisionAgent } from "@/components/chat/VisionAgent";
 import { MultiAgentPanel, AgentMessage, AgentDefinition } from "@/components/chat/MultiAgentPanel";
 import { AgentActivity } from "@/components/chat/AgentActivityLog";
+import { BehaviorSuggestions } from "@/components/chat/BehaviorSuggestions";
+import { TaskReplayPanel } from "@/components/chat/TaskReplayPanel";
 import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 import { useTextToSpeech } from "@/hooks/useTextToSpeech";
 import { useContinuousListening } from "@/hooks/useContinuousListening";
 import { toast } from "@/hooks/use-toast";
-import { sendChatMessageStreaming, clearSession } from "@/services/chatService";
-import { Eye, EyeOff } from "lucide-react";
+import { sendChatMessageStreaming, clearSession, getCurrentSessionId } from "@/services/chatService";
+import { Eye, EyeOff, Brain, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface Message {
   id: string;
@@ -21,6 +24,8 @@ interface Message {
   content: string;
   intent?: string;
   confidence?: "high" | "medium" | "low";
+  confidenceScore?: number;
+  needsUserConfirmation?: boolean;
   emotion?: "positive" | "neutral" | "negative" | "frustrated";
   showEscalation?: boolean;
   selectedTool?: string;
@@ -63,6 +68,7 @@ const Index = () => {
   const [explainMode, setExplainMode] = useState(false);
   const [activeAgents, setActiveAgents] = useState<AgentDefinition["id"][]>([]);
   const [agentMessages, setAgentMessages] = useState<AgentMessage[]>([]);
+  const [showBehaviorPanel, setShowBehaviorPanel] = useState(false);
   const conversationHistory = useRef<Array<{ role: "user" | "assistant"; content: string }>>([]);
   
   const { isListening, transcript, toggleListening, resetTranscript, setLanguage, currentLanguage } = useSpeechRecognition();
@@ -352,8 +358,8 @@ const Index = () => {
             disabled={isTyping}
           />
           
-          {/* Vision Toggle */}
-          <div className="flex justify-center">
+          {/* Vision Toggle and Behavior Panel */}
+          <div className="flex justify-center gap-2">
             <Button
               variant="ghost"
               size="sm"
@@ -365,7 +371,51 @@ const Index = () => {
               {showVisionAgent ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
               Vision
             </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowBehaviorPanel(!showBehaviorPanel)}
+              className={`text-[10px] h-7 rounded-full gap-1.5 ${
+                showBehaviorPanel ? "text-primary bg-primary/10" : "text-muted-foreground"
+              }`}
+            >
+              <Brain className="w-3 h-3" />
+              Learning
+            </Button>
           </div>
+          
+          {/* Behavior Learning Panel */}
+          {showBehaviorPanel && (
+            <div className="mt-2">
+              <Tabs defaultValue="behavior" className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="behavior" className="text-xs">
+                    <Brain className="w-3 h-3 mr-1" /> Behavior
+                  </TabsTrigger>
+                  <TabsTrigger value="tasks" className="text-xs">
+                    <History className="w-3 h-3 mr-1" /> Tasks
+                  </TabsTrigger>
+                </TabsList>
+                <TabsContent value="behavior" className="mt-2">
+                  <BehaviorSuggestions
+                    sessionId={getCurrentSessionId() || ""}
+                    onAcceptSuggestion={handleSendMessage}
+                    language={currentLanguage === "hi-IN" ? "hi" : "en"}
+                  />
+                </TabsContent>
+                <TabsContent value="tasks" className="mt-2">
+                  <TaskReplayPanel
+                    sessionId={getCurrentSessionId() || ""}
+                    onReplayTask={(task) => {
+                      toast({ title: "Replaying task", description: task.task_name });
+                      handleSendMessage(`Replay: ${task.task_name}`);
+                    }}
+                    language={currentLanguage === "hi-IN" ? "hi" : "en"}
+                  />
+                </TabsContent>
+              </Tabs>
+            </div>
+          )}
         </div>
       </div>
       

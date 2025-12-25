@@ -89,6 +89,81 @@ export type Database = {
         }
         Relationships: []
       }
+      behavior_patterns: {
+        Row: {
+          confidence_score: number | null
+          created_at: string
+          id: string
+          is_automated: boolean | null
+          last_occurred_at: string | null
+          occurrence_count: number | null
+          pattern_key: string
+          pattern_type: string
+          pattern_value: string
+          session_id: string
+          user_approved: boolean | null
+        }
+        Insert: {
+          confidence_score?: number | null
+          created_at?: string
+          id?: string
+          is_automated?: boolean | null
+          last_occurred_at?: string | null
+          occurrence_count?: number | null
+          pattern_key: string
+          pattern_type: string
+          pattern_value: string
+          session_id: string
+          user_approved?: boolean | null
+        }
+        Update: {
+          confidence_score?: number | null
+          created_at?: string
+          id?: string
+          is_automated?: boolean | null
+          last_occurred_at?: string | null
+          occurrence_count?: number | null
+          pattern_key?: string
+          pattern_type?: string
+          pattern_value?: string
+          session_id?: string
+          user_approved?: boolean | null
+        }
+        Relationships: []
+      }
+      confidence_logs: {
+        Row: {
+          action_taken: string
+          confidence_score: number
+          created_at: string
+          id: string
+          reasoning: string | null
+          session_id: string
+          task_type: string
+          threshold_used: number | null
+        }
+        Insert: {
+          action_taken: string
+          confidence_score: number
+          created_at?: string
+          id?: string
+          reasoning?: string | null
+          session_id: string
+          task_type: string
+          threshold_used?: number | null
+        }
+        Update: {
+          action_taken?: string
+          confidence_score?: number
+          created_at?: string
+          id?: string
+          reasoning?: string | null
+          session_id?: string
+          task_type?: string
+          threshold_used?: number | null
+        }
+        Relationships: []
+      }
       conversation_memory: {
         Row: {
           created_at: string
@@ -140,6 +215,84 @@ export type Database = {
           message_count?: number | null
           session_id?: string
           summary?: string
+        }
+        Relationships: []
+      }
+      error_recovery_logs: {
+        Row: {
+          alternative_strategy: string | null
+          created_at: string
+          error_reason: string
+          final_status: string
+          id: string
+          original_task: string
+          retry_count: number | null
+          session_id: string
+        }
+        Insert: {
+          alternative_strategy?: string | null
+          created_at?: string
+          error_reason: string
+          final_status: string
+          id?: string
+          original_task: string
+          retry_count?: number | null
+          session_id: string
+        }
+        Update: {
+          alternative_strategy?: string | null
+          created_at?: string
+          error_reason?: string
+          final_status?: string
+          id?: string
+          original_task?: string
+          retry_count?: number | null
+          session_id?: string
+        }
+        Relationships: []
+      }
+      task_workflows: {
+        Row: {
+          created_at: string
+          execution_time_ms: number | null
+          id: string
+          input_params: Json | null
+          last_replayed_at: string | null
+          output_result: Json | null
+          replay_count: number | null
+          session_id: string
+          status: string | null
+          task_description: string | null
+          task_name: string
+          workflow_steps: Json
+        }
+        Insert: {
+          created_at?: string
+          execution_time_ms?: number | null
+          id?: string
+          input_params?: Json | null
+          last_replayed_at?: string | null
+          output_result?: Json | null
+          replay_count?: number | null
+          session_id: string
+          status?: string | null
+          task_description?: string | null
+          task_name: string
+          workflow_steps: Json
+        }
+        Update: {
+          created_at?: string
+          execution_time_ms?: number | null
+          id?: string
+          input_params?: Json | null
+          last_replayed_at?: string | null
+          output_result?: Json | null
+          replay_count?: number | null
+          session_id?: string
+          status?: string | null
+          task_description?: string | null
+          task_name?: string
+          workflow_steps?: Json
         }
         Relationships: []
       }
