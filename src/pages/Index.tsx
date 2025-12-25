@@ -11,7 +11,7 @@ import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 import { useTextToSpeech } from "@/hooks/useTextToSpeech";
 import { useContinuousListening } from "@/hooks/useContinuousListening";
 import { toast } from "@/hooks/use-toast";
-import { sendChatMessage, clearSession } from "@/services/chatService";
+import { sendChatMessageStreaming, clearSession } from "@/services/chatService";
 import { Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -27,6 +27,8 @@ interface Message {
   toolReason?: string;
   reasoning?: string;
   retryCount?: number;
+  timestamp: number;
+  isStreaming?: boolean;
 }
 
 type IntentType = 
@@ -100,12 +102,19 @@ const Index = () => {
   const addMessage = useCallback((
     role: "user" | "assistant", 
     content: string, 
-    extras?: Partial<Message>
+    extras?: Partial<Omit<Message, 'id' | 'role' | 'content' | 'timestamp'>>
   ): string => {
     const id = Date.now().toString();
-    setMessages(prev => [...prev, { id, role, content, ...extras }]);
+    const timestamp = Date.now();
+    setMessages(prev => [...prev, { id, role, content, timestamp, ...extras }]);
     conversationHistory.current.push({ role, content });
     return id;
+  }, []);
+
+  const updateMessage = useCallback((id: string, updates: Partial<Message>) => {
+    setMessages(prev => prev.map(msg => 
+      msg.id === id ? { ...msg, ...updates } : msg
+    ));
   }, []);
 
   const simulateAgentActivity = useCallback((activities: Array<{agent: string, action: string}>) => {
@@ -157,71 +166,110 @@ const Index = () => {
     setActiveAgents([]);
     setAgentMessages([]);
 
-    try {
-      const response = await sendChatMessage(
-        [...conversationHistory.current],
-        isVoiceMode,
-        intent,
-        { agentRole, isSimulation, explainDecision: explainMode }
-      );
+    // Create assistant message placeholder for streaming
+    const assistantId = Date.now().toString();
+    const assistantTimestamp = Date.now();
+    setMessages(prev => [...prev, { 
+      id: assistantId, 
+      role: "assistant" as const, 
+      content: "", 
+      timestamp: assistantTimestamp,
+      isStreaming: true 
+    }]);
 
-      if (response.agentActivities) {
-        simulateAgentActivity(response.agentActivities);
-        const agents = response.agentActivities.map(a => a.agent as AgentDefinition["id"]);
-        setActiveAgents([...new Set(agents)]);
-        
-        const msgs: AgentMessage[] = [];
-        response.agentActivities.forEach((activity, index) => {
-          if (index > 0) {
-            const prevAgent = response.agentActivities[index - 1].agent;
-            msgs.push({
-              id: `${Date.now()}_${index}`,
-              from: prevAgent as AgentDefinition["id"],
-              to: activity.agent as AgentDefinition["id"],
-              type: "request",
-              content: activity.action,
-              timestamp: Date.now(),
+    let streamedContent = "";
+
+    await sendChatMessageStreaming(
+      [...conversationHistory.current],
+      {
+        onToken: (token) => {
+          streamedContent += token;
+          updateMessage(assistantId, { content: streamedContent });
+        },
+        onComplete: (response) => {
+          // Update conversation history
+          conversationHistory.current.push({ role: "assistant", content: streamedContent });
+          
+          // Update message with final metadata
+          updateMessage(assistantId, {
+            content: streamedContent || response.content || "",
+            isStreaming: false,
+            intent: response.intent || intent,
+            confidence: response.confidence,
+            emotion: response.emotion,
+            showEscalation: response.shouldEscalate,
+            selectedTool: response.selectedTool,
+            toolReason: response.toolReason,
+            reasoning: response.reasoning,
+            retryCount: response.retryCount,
+          });
+
+          // Handle agent activities
+          if (response.agentActivities) {
+            simulateAgentActivity(response.agentActivities);
+            const agents = response.agentActivities.map(a => a.agent as AgentDefinition["id"]);
+            setActiveAgents([...new Set(agents)] as AgentDefinition["id"][]);
+            
+            const msgs: AgentMessage[] = [];
+            response.agentActivities.forEach((activity, index) => {
+              if (index > 0 && response.agentActivities) {
+                const prevAgent = response.agentActivities[index - 1].agent;
+                msgs.push({
+                  id: `${Date.now()}_${index}`,
+                  from: prevAgent as AgentDefinition["id"],
+                  to: activity.agent as AgentDefinition["id"],
+                  type: "request",
+                  content: activity.action,
+                  timestamp: Date.now(),
+                });
+              }
+            });
+            setAgentMessages(msgs);
+          }
+
+          // Handle goals
+          if (response.isGoal && response.goalSteps?.length) {
+            setCurrentGoal({
+              goal: content,
+              steps: response.goalSteps,
+              currentStep: 0,
+              executedActions: response.executedActions,
+              isAutonomous: response.isAutonomous,
             });
           }
-        });
-        setAgentMessages(msgs);
-      }
 
-      if (response.isGoal && response.goalSteps?.length) {
-        setCurrentGoal({
-          goal: content,
-          steps: response.goalSteps,
-          currentStep: 0,
-          executedActions: response.executedActions,
-          isAutonomous: response.isAutonomous,
-        });
-      }
+          // Voice mode
+          if (isVoiceMode && streamedContent) {
+            setSpeakingMessageId(assistantId);
+            speak(streamedContent);
+          }
 
-      if (response.error) {
-        const messageId = addMessage("assistant", response.error, { intent: "Support / Help", confidence: "low" });
-        if (isVoiceMode) { setSpeakingMessageId(messageId); speak(response.error); }
-      } else if (response.content) {
-        const messageId = addMessage("assistant", response.content, {
-          intent: response.intent || intent,
-          confidence: response.confidence,
-          emotion: response.emotion,
-          showEscalation: response.shouldEscalate,
-          selectedTool: response.selectedTool,
-          toolReason: response.toolReason,
-          reasoning: response.reasoning,
-          retryCount: response.retryCount,
-        });
-        if (isVoiceMode) { setSpeakingMessageId(messageId); speak(response.content); }
-      }
-    } catch (err) {
-      console.error("Error:", err);
-      const errorMsg = "Something went wrong. Please try again.";
-      const messageId = addMessage("assistant", errorMsg, { intent: "Support / Help", confidence: "low", showEscalation: true });
-      if (isVoiceMode) { setSpeakingMessageId(messageId); speak(errorMsg); }
-    }
-
-    setIsTyping(false);
-    setIsVoiceMode(false);
+          setIsTyping(false);
+          setIsVoiceMode(false);
+        },
+        onError: (error) => {
+          updateMessage(assistantId, {
+            content: error,
+            isStreaming: false,
+            intent: "Support / Help",
+            confidence: "low",
+            showEscalation: true,
+          });
+          conversationHistory.current.push({ role: "assistant", content: error });
+          
+          if (isVoiceMode) {
+            setSpeakingMessageId(assistantId);
+            speak(error);
+          }
+          
+          setIsTyping(false);
+          setIsVoiceMode(false);
+        },
+      },
+      isVoiceMode,
+      intent,
+      { agentRole, isSimulation, explainDecision: explainMode }
+    );
   };
 
   const handleVoiceToggle = () => {

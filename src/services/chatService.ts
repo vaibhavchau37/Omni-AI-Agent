@@ -34,6 +34,12 @@ interface ActionResult {
   details?: string;
 }
 
+interface StreamCallbacks {
+  onToken: (token: string) => void;
+  onComplete: (response: ChatResponse) => void;
+  onError: (error: string) => void;
+}
+
 const getSessionId = (): string => {
   const storageKey = "omniagent_session_id";
   let sessionId = localStorage.getItem(storageKey);
@@ -68,6 +74,130 @@ const ensureUserSession = async (sessionId: string): Promise<void> => {
   }
 };
 
+// Streaming chat with word-by-word output
+export const sendChatMessageStreaming = async (
+  messages: ChatMessage[],
+  callbacks: StreamCallbacks,
+  voiceMode: boolean = false,
+  intent?: string,
+  options?: {
+    agentRole?: string;
+    isSimulation?: boolean;
+    explainDecision?: boolean;
+  }
+): Promise<void> => {
+  try {
+    const sessionId = getSessionId();
+    await ensureUserSession(sessionId);
+    
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    const response = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/omniagent-chat`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        },
+        body: JSON.stringify({
+          messages: messages.map(m => ({ role: m.role, content: m.content })),
+          voiceMode,
+          intent,
+          sessionId,
+          agentRole: options?.agentRole || "default",
+          isSimulation: options?.isSimulation || false,
+          explainDecision: options?.explainDecision || false,
+          stream: true,
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      callbacks.onError("Connection failed. Please try again.");
+      return;
+    }
+
+    const contentType = response.headers.get("content-type");
+    
+    // If it's a streaming response
+    if (contentType?.includes("text/event-stream") && response.body) {
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let fullContent = "";
+      let metadata: Partial<ChatResponse> = {};
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            const data = line.slice(6).trim();
+            if (data === "[DONE]") continue;
+
+            try {
+              const parsed = JSON.parse(data);
+              
+              // Handle token delta
+              if (parsed.type === "token" && parsed.content) {
+                fullContent += parsed.content;
+                callbacks.onToken(parsed.content);
+              }
+              
+              // Handle metadata
+              if (parsed.type === "metadata") {
+                metadata = { ...metadata, ...parsed };
+              }
+              
+              // Handle complete response (non-streaming fallback)
+              if (parsed.content && !parsed.type) {
+                fullContent = parsed.content;
+                metadata = parsed;
+              }
+            } catch {
+              // Ignore parse errors for incomplete chunks
+            }
+          }
+        }
+      }
+
+      callbacks.onComplete({
+        content: fullContent,
+        ...metadata,
+      });
+    } else {
+      // Non-streaming JSON response fallback
+      const data = await response.json();
+      
+      if (data.error) {
+        callbacks.onError(data.error);
+        return;
+      }
+
+      // Simulate streaming for non-streaming responses
+      const content = data.content || "";
+      const words = content.split(" ");
+      
+      for (let i = 0; i < words.length; i++) {
+        await new Promise(resolve => setTimeout(resolve, 30));
+        callbacks.onToken(words[i] + (i < words.length - 1 ? " " : ""));
+      }
+
+      callbacks.onComplete(data);
+    }
+  } catch (err) {
+    console.error("Streaming error:", err);
+    callbacks.onError("Something went wrong. Please try again.");
+  }
+};
+
 export const sendChatMessage = async (
   messages: ChatMessage[],
   voiceMode: boolean = false,
@@ -83,9 +213,6 @@ export const sendChatMessage = async (
     
     // Ensure session is linked to user
     await ensureUserSession(sessionId);
-    
-    // Get current session for auth header
-    const { data: { session } } = await supabase.auth.getSession();
     
     const { data, error } = await supabase.functions.invoke("omniagent-chat", {
       body: { 
