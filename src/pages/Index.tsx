@@ -7,6 +7,7 @@ import { GoalTracker } from "@/components/chat/GoalTracker";
 import { AnalyticsDashboard } from "@/components/chat/AnalyticsDashboard";
 import { DemoScenarios } from "@/components/chat/DemoScenarios";
 import { VoiceLanguageSelector } from "@/components/chat/VoiceLanguageSelector";
+import { VisionAgent } from "@/components/chat/VisionAgent";
 import { AgentActivity } from "@/components/chat/AgentActivityLog";
 import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 import { useTextToSpeech } from "@/hooks/useTextToSpeech";
@@ -65,6 +66,7 @@ const Index = () => {
   const [agentRole, setAgentRole] = useState<AgentRole>("default");
   const [isSimulation, setIsSimulation] = useState(false);
   const [showAnalytics, setShowAnalytics] = useState(false);
+  const [showVisionAgent, setShowVisionAgent] = useState(false);
   const [currentGoal, setCurrentGoal] = useState<{ goal: string; steps: string[]; currentStep: number; executedActions?: Array<{step: number, action: string, status: string, result: string}>; isAutonomous?: boolean } | null>(null);
   const [explainMode, setExplainMode] = useState(false);
   const conversationHistory = useRef<Array<{ role: "user" | "assistant"; content: string }>>([]);
@@ -353,20 +355,48 @@ const Index = () => {
       
       <div className="border-t border-border/50 p-4 pb-6">
         <div className="max-w-4xl mx-auto space-y-4">
+          {/* Vision Agent Panel */}
+          {showVisionAgent && (
+            <VisionAgent 
+              language={currentLanguage === "hi-IN" ? "hi" : "en"}
+              onActionSuggested={(action) => {
+                console.log("Vision action suggested:", action);
+              }}
+            />
+          )}
+          
           {/* Demo Scenarios - Show only when no messages */}
-          {messages.length === 0 && (
+          {messages.length === 0 && !showVisionAgent && (
             <DemoScenarios 
               onSelectDemo={handleSendMessage} 
               disabled={isTyping} 
             />
           )}
           
-          <ChatInput
-            onSend={handleSendMessage}
-            isListening={isListening}
-            onVoiceToggle={handleVoiceToggle}
-            disabled={isTyping}
-          />
+          <div className="flex gap-2">
+            <ChatInput
+              onSend={handleSendMessage}
+              isListening={isListening}
+              onVoiceToggle={handleVoiceToggle}
+              disabled={isTyping}
+            />
+          </div>
+          
+          {/* Vision Agent Toggle */}
+          <div className="flex justify-center">
+            <button
+              onClick={() => setShowVisionAgent(!showVisionAgent)}
+              className={`text-xs px-3 py-1.5 rounded-full transition-colors ${
+                showVisionAgent 
+                  ? "bg-primary/20 text-primary border border-primary/30" 
+                  : "text-muted-foreground hover:text-primary hover:bg-primary/10"
+              }`}
+            >
+              👁️ {showVisionAgent 
+                ? (currentLanguage === "hi-IN" ? "विज़न एजेंट छुपाएं" : "Hide Vision Agent")
+                : (currentLanguage === "hi-IN" ? "विज़न एजेंट दिखाएं" : "Show Vision Agent")}
+            </button>
+          </div>
         </div>
       </div>
       
