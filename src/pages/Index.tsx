@@ -5,6 +5,7 @@ import { ChatInput } from "@/components/chat/ChatInput";
 import { RoleSelector, AgentRole } from "@/components/chat/RoleSelector";
 import { GoalTracker } from "@/components/chat/GoalTracker";
 import { AnalyticsDashboard } from "@/components/chat/AnalyticsDashboard";
+import { DemoScenarios } from "@/components/chat/DemoScenarios";
 import { AgentActivity } from "@/components/chat/AgentActivityLog";
 import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 import { useTextToSpeech } from "@/hooks/useTextToSpeech";
@@ -308,7 +309,15 @@ const Index = () => {
       />
       
       <div className="border-t border-border/50 p-4 pb-6">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-4xl mx-auto space-y-4">
+          {/* Demo Scenarios - Show only when no messages */}
+          {messages.length === 0 && (
+            <DemoScenarios 
+              onSelectDemo={handleSendMessage} 
+              disabled={isTyping} 
+            />
+          )}
+          
           <ChatInput
             onSend={handleSendMessage}
             isListening={isListening}

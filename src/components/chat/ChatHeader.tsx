@@ -1,7 +1,8 @@
-import { Bot, Sparkles, Zap, RotateCcw } from "lucide-react";
+import { Sparkles, Zap, RotateCcw, BarChart3, Lightbulb } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { clearSession } from "@/services/chatService";
 import { toast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 
 interface ChatHeaderProps {
   onClearSession?: () => void;
@@ -10,7 +11,12 @@ interface ChatHeaderProps {
   onExplainModeToggle?: () => void;
 }
 
-export const ChatHeader = ({ onClearSession }: ChatHeaderProps) => {
+export const ChatHeader = ({ 
+  onClearSession, 
+  onOpenAnalytics, 
+  explainMode, 
+  onExplainModeToggle 
+}: ChatHeaderProps) => {
   const handleNewSession = () => {
     clearSession();
     if (onClearSession) {
@@ -41,7 +47,35 @@ export const ChatHeader = ({ onClearSession }: ChatHeaderProps) => {
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          {/* Explain Mode Toggle */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onExplainModeToggle}
+            className={cn(
+              "text-muted-foreground hover:text-foreground gap-1.5",
+              explainMode && "text-primary bg-primary/10"
+            )}
+            title="Show AI reasoning"
+          >
+            <Lightbulb className={cn("w-4 h-4", explainMode && "fill-primary")} />
+            <span className="hidden sm:inline">Explain</span>
+          </Button>
+
+          {/* Analytics Dashboard */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onOpenAnalytics}
+            className="text-muted-foreground hover:text-foreground gap-1.5"
+            title="View analytics"
+          >
+            <BarChart3 className="w-4 h-4" />
+            <span className="hidden sm:inline">Stats</span>
+          </Button>
+
+          {/* New Chat */}
           <Button
             variant="ghost"
             size="sm"
@@ -49,8 +83,9 @@ export const ChatHeader = ({ onClearSession }: ChatHeaderProps) => {
             className="text-muted-foreground hover:text-foreground gap-1.5"
           >
             <RotateCcw className="w-4 h-4" />
-            <span className="hidden sm:inline">New Chat</span>
+            <span className="hidden sm:inline">New</span>
           </Button>
+
           <div className="px-3 py-1.5 rounded-full bg-green-500/10 border border-green-500/20">
             <span className="text-xs font-medium text-green-400">Online</span>
           </div>
