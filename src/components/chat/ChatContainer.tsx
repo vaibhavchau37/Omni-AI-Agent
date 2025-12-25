@@ -18,6 +18,8 @@ interface Message {
   toolReason?: string;
   reasoning?: string;
   retryCount?: number;
+  timestamp: number;
+  isStreaming?: boolean;
 }
 
 interface ChatContainerProps {
@@ -90,7 +92,9 @@ export const ChatContainer = ({
             toolReason={message.toolReason}
             reasoning={message.reasoning}
             retryCount={message.retryCount}
-            onSpeak={message.role === "assistant" && onSpeak ? () => onSpeak(message.content) : undefined}
+            timestamp={message.timestamp}
+            isStreaming={message.isStreaming}
+            onSpeak={message.role === "assistant" && onSpeak && !message.isStreaming ? () => onSpeak(message.content) : undefined}
             isSpeaking={speakingMessageId === message.id}
           />
         ))}
