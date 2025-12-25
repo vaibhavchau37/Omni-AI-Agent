@@ -618,17 +618,8 @@ serve(async (req) => {
 
   try {
     // ===========================================
-    // JWT AUTHENTICATION
+    // CONFIGURATION
     // ===========================================
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      console.error('[omniagent-chat] Missing authorization header');
-      return new Response(
-        JSON.stringify({ error: "Authentication required" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
     const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY");
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -642,19 +633,21 @@ serve(async (req) => {
       );
     }
 
-    // Create anon client with user's JWT for RLS-protected operations
-    const supabaseWithAuth = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      global: { headers: { Authorization: authHeader } }
-    });
+    // ===========================================
+    // OPTIONAL AUTHENTICATION
+    // ===========================================
+    const authHeader = req.headers.get('Authorization');
+    let user = null;
+    let supabaseWithAuth = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    // Verify the user's JWT
-    const { data: { user }, error: authError } = await supabaseWithAuth.auth.getUser();
-    if (authError || !user) {
-      console.error('[omniagent-chat] Invalid JWT:', authError?.message);
-      return new Response(
-        JSON.stringify({ error: "Invalid or expired authentication" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    if (authHeader) {
+      supabaseWithAuth = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+        global: { headers: { Authorization: authHeader } }
+      });
+
+      // Try to verify JWT, but don't require it
+      const { data: { user: authUser } } = await supabaseWithAuth.auth.getUser();
+      user = authUser;
     }
 
     // ===========================================
@@ -689,15 +682,19 @@ serve(async (req) => {
       explainDecision
     } = validationResult.data;
 
-    // Verify session ownership if sessionId provided
-    if (sessionId) {
+    // Session verification only if user is authenticated
+    if (sessionId && user) {
       const ownsSession = await verifySessionOwnership(supabaseWithAuth, sessionId, user.id);
       if (!ownsSession) {
-        console.error('[omniagent-chat] User does not own session:', sessionId);
-        return new Response(
-          JSON.stringify({ error: "Access denied to this session" }),
-          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        // Create a new session link for this user
+        try {
+          await supabaseWithAuth.from('user_sessions').insert({
+            session_id: sessionId,
+            user_id: user.id,
+          });
+        } catch (e) {
+          // Session might already exist, ignore
+        }
       }
     }
 
