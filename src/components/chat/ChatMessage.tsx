@@ -1,10 +1,13 @@
 import { cn } from "@/lib/utils";
-import { Bot, User, Tag } from "lucide-react";
+import { Bot, User, Tag, Volume2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface ChatMessageProps {
   role: "user" | "assistant";
   content: string;
   intent?: string;
+  onSpeak?: () => void;
+  isSpeaking?: boolean;
 }
 
 const intentColors: Record<string, string> = {
@@ -16,7 +19,7 @@ const intentColors: Record<string, string> = {
   "Unknown Intent": "bg-muted text-muted-foreground border-border",
 };
 
-export const ChatMessage = ({ role, content, intent }: ChatMessageProps) => {
+export const ChatMessage = ({ role, content, intent, onSpeak, isSpeaking }: ChatMessageProps) => {
   const isAssistant = role === "assistant";
 
   return (
@@ -53,6 +56,23 @@ export const ChatMessage = ({ role, content, intent }: ChatMessageProps) => {
           )}
         >
           <p className="text-foreground whitespace-pre-wrap">{content}</p>
+          
+          {isAssistant && onSpeak && (
+            <div className="mt-2 pt-2 border-t border-border/30">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onSpeak}
+                className={cn(
+                  "h-7 px-2 text-xs gap-1.5",
+                  isSpeaking && "text-primary"
+                )}
+              >
+                <Volume2 className={cn("w-3.5 h-3.5", isSpeaking && "animate-pulse")} />
+                {isSpeaking ? "Speaking..." : "Listen"}
+              </Button>
+            </div>
+          )}
         </div>
       </div>
 

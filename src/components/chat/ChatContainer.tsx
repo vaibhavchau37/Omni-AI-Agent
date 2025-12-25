@@ -13,6 +13,8 @@ interface Message {
 interface ChatContainerProps {
   messages: Message[];
   isTyping: boolean;
+  onSpeak?: (content: string) => void;
+  speakingMessageId?: string | null;
 }
 
 const capabilities = [
@@ -23,7 +25,7 @@ const capabilities = [
   { icon: HelpCircle, label: "Support", desc: "Help & guidance" },
 ];
 
-export const ChatContainer = ({ messages, isTyping }: ChatContainerProps) => {
+export const ChatContainer = ({ messages, isTyping, onSpeak, speakingMessageId }: ChatContainerProps) => {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -67,6 +69,8 @@ export const ChatContainer = ({ messages, isTyping }: ChatContainerProps) => {
             role={message.role} 
             content={message.content}
             intent={message.intent}
+            onSpeak={message.role === "assistant" && onSpeak ? () => onSpeak(message.content) : undefined}
+            isSpeaking={speakingMessageId === message.id}
           />
         ))}
 
