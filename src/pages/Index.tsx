@@ -6,6 +6,7 @@ import { RoleSelector, AgentRole } from "@/components/chat/RoleSelector";
 import { GoalTracker } from "@/components/chat/GoalTracker";
 import { AnalyticsDashboard } from "@/components/chat/AnalyticsDashboard";
 import { DemoScenarios } from "@/components/chat/DemoScenarios";
+import { VoiceLanguageSelector } from "@/components/chat/VoiceLanguageSelector";
 import { AgentActivity } from "@/components/chat/AgentActivityLog";
 import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 import { useTextToSpeech } from "@/hooks/useTextToSpeech";
@@ -68,8 +69,8 @@ const Index = () => {
   const [explainMode, setExplainMode] = useState(false);
   const conversationHistory = useRef<Array<{ role: "user" | "assistant"; content: string }>>([]);
   
-  const { isListening, transcript, toggleListening, resetTranscript } = useSpeechRecognition();
-  const { speak, stop, isSpeaking } = useTextToSpeech();
+  const { isListening, transcript, toggleListening, resetTranscript, setLanguage, currentLanguage, detectedLanguage } = useSpeechRecognition();
+  const { speak, stop, isSpeaking, setPreferredLanguage } = useTextToSpeech();
 
   useEffect(() => {
     if (!isListening && transcript) {
@@ -265,12 +266,36 @@ const Index = () => {
   const handleVoiceToggle = () => {
     if (isListening) {
       toggleListening();
-      toast({ title: "Processing your voice", description: "Responding shortly..." });
+      const isHindi = currentLanguage === "hi-IN" || detectedLanguage === "hi";
+      toast({ 
+        title: isHindi ? "आपकी आवाज़ प्रोसेस हो रही है" : "Processing your voice", 
+        description: isHindi ? "जल्द ही जवाब आएगा..." : "Responding shortly..." 
+      });
     } else {
       stop();
       setSpeakingMessageId(null);
       toggleListening();
-      toast({ title: "Listening...", description: "Speak naturally." });
+      const isHindi = currentLanguage === "hi-IN";
+      toast({ 
+        title: isHindi ? "🎤 सुन रहा हूं..." : "🎤 Listening...", 
+        description: currentLanguage === "auto" 
+          ? "हिंदी या English में बोलें / Speak naturally" 
+          : isHindi 
+            ? "हिंदी में बोलें" 
+            : "Speak naturally." 
+      });
+    }
+  };
+
+  const handleLanguageChange = (lang: "en-US" | "hi-IN" | "auto") => {
+    setLanguage(lang);
+    // Also update TTS language preference
+    if (lang === "hi-IN") {
+      setPreferredLanguage("hi");
+    } else if (lang === "en-US") {
+      setPreferredLanguage("en");
+    } else {
+      setPreferredLanguage("auto");
     }
   };
 
@@ -286,18 +311,34 @@ const Index = () => {
       {/* Role Selector Bar */}
       <div className="border-b border-border/50 px-4 py-2 bg-secondary/20">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <RoleSelector 
-            currentRole={agentRole}
-            onRoleChange={setAgentRole}
-            isSimulation={isSimulation}
-            onSimulationToggle={() => setIsSimulation(!isSimulation)}
-          />
+          <div className="flex items-center gap-3">
+            <RoleSelector 
+              currentRole={agentRole}
+              onRoleChange={setAgentRole}
+              isSimulation={isSimulation}
+              onSimulationToggle={() => setIsSimulation(!isSimulation)}
+            />
+            
+            <VoiceLanguageSelector
+              currentLanguage={currentLanguage}
+              onLanguageChange={handleLanguageChange}
+              isListening={isListening}
+            />
+          </div>
           
-          {isSimulation && (
-            <span className="text-xs text-yellow-400 bg-yellow-500/10 px-2 py-1 rounded-md">
-              Sandbox Mode - No data saved
-            </span>
-          )}
+          <div className="flex items-center gap-2">
+            {detectedLanguage && isVoiceMode && (
+              <span className="text-xs text-primary bg-primary/10 px-2 py-1 rounded-md">
+                {detectedLanguage === "hi" ? "🇮🇳 हिंदी" : "🇺🇸 English"} detected
+              </span>
+            )}
+            
+            {isSimulation && (
+              <span className="text-xs text-yellow-400 bg-yellow-500/10 px-2 py-1 rounded-md">
+                Sandbox Mode
+              </span>
+            )}
+          </div>
         </div>
       </div>
       
