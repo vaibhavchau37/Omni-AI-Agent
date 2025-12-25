@@ -1,11 +1,44 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+// ===========================================
+// CORS CONFIGURATION - Restrict to allowed origins
+// ===========================================
+const ALLOWED_ORIGINS = [
+  'https://ymbgmsvmesejppjgothe.lovableproject.com',
+  'http://localhost:5173',
+  'http://localhost:8080',
+  'http://localhost:3000',
+];
+
+const getCorsHeaders = (origin: string | null) => {
+  const allowedOrigin = origin && ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+  return {
+    'Access-Control-Allow-Origin': allowedOrigin,
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Credentials': 'true',
+  };
 };
+
+// ===========================================
+// INPUT VALIDATION SCHEMAS
+// ===========================================
+const MessageSchema = z.object({
+  role: z.enum(['user', 'assistant', 'system']),
+  content: z.string().min(1).max(50000),
+});
+
+const ChatRequestSchema = z.object({
+  messages: z.array(MessageSchema).min(1).max(100),
+  sessionId: z.string().min(1).max(100).optional(),
+  voiceMode: z.boolean().optional().default(false),
+  intent: z.string().max(200).optional(),
+  agentRole: z.enum(['default', 'student_assistant', 'hr_assistant', 'customer_support', 'admin_agent']).optional().default('default'),
+  isSimulation: z.boolean().optional().default(false),
+  explainDecision: z.boolean().optional().default(false),
+});
 
 // Available tools for agent - Desktop Actions
 const AVAILABLE_TOOLS = [
@@ -68,11 +101,10 @@ const executeDesktopAction = async (
   action: string, 
   params: Record<string, string>
 ): Promise<{ success: boolean; result: string; requiresConfirmation?: boolean }> => {
-  // Simulated execution with safe defaults
   const safeActions = ["SEARCH", "ANALYZE", "CALCULATE", "NOTES"];
   const confirmActions = ["EMAIL", "CALENDAR", "FILE", "TASK"];
   
-  await new Promise(r => setTimeout(r, 300)); // Simulate processing
+  await new Promise(r => setTimeout(r, 300));
   
   if (confirmActions.includes(action)) {
     return {
@@ -122,11 +154,7 @@ const ROLE_CONFIGS = {
   },
 };
 
-// ==========================================
-// MULTI-AGENT SYSTEM ARCHITECTURE
-// ==========================================
-
-// Agent definitions with clear responsibilities and permissions
+// Agent definitions with clear responsibilities
 const AGENT_REGISTRY = {
   coordinator: {
     id: "coordinator",
@@ -172,43 +200,11 @@ const AGENT_REGISTRY = {
   },
 };
 
-// Communication protocol types
-interface AgentMessage {
-  id: string;
-  from: string;
-  to: string;
-  type: "request" | "response" | "notify" | "approve" | "reject";
-  content: string;
-  timestamp: number;
-  metadata?: Record<string, any>;
-}
-
-// Agent communication log for transparency
-const createAgentMessage = (
-  from: string, 
-  to: string, 
-  type: AgentMessage["type"], 
-  content: string
-): AgentMessage => ({
-  id: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-  from,
-  to,
-  type,
-  content,
-  timestamp: Date.now(),
-});
-
 // Safety topics that require careful handling
 const SAFETY_TOPICS = [
   "suicide", "self-harm", "harm others", "kill", "weapon", "illegal", 
   "hack", "exploit", "password", "credit card", "social security",
   "medical diagnosis", "legal advice", "financial advice"
-];
-
-// Topics where AI should admit uncertainty
-const UNCERTAINTY_TOPICS = [
-  "future predictions", "personal opinion", "medical symptoms",
-  "legal matters", "investment advice", "specific prices", "exact dates"
 ];
 
 // Check if message contains safety concerns
@@ -222,34 +218,7 @@ const checkSafety = (message: string): { isSafe: boolean; concern: string | null
   return { isSafe: true, concern: null };
 };
 
-// ==========================================
-// AGENT-SPECIFIC PROMPTS WITH PERMISSIONS
-// ==========================================
-
-const COORDINATOR_PROMPT = `You are the Coordinator Agent in a multi-agent AI system.
-
-YOUR RESPONSIBILITIES:
-1. Analyze incoming requests and determine which agents are needed
-2. Delegate tasks to appropriate specialized agents
-3. Resolve conflicts between agent outputs
-4. Ensure task completion follows the proper workflow
-
-AVAILABLE AGENTS & THEIR ROLES:
-- Planner: Creates execution plans (use for goals and complex tasks)
-- Executor: Runs tools and performs actions (use for actual work)
-- Support: Formats responses with empathy (use for user-facing output)
-- Evaluator: Reviews quality and confidence (use for important decisions)
-- Safety: Blocks unsafe actions (always consult for sensitive topics)
-
-YOUR PERMISSIONS: ${JSON.stringify(AGENT_REGISTRY.coordinator.permissions)}
-YOUR RESTRICTIONS: ${JSON.stringify(AGENT_REGISTRY.coordinator.restrictions)}
-
-OUTPUT FORMAT:
-AGENTS_NEEDED: [list agents separated by commas]
-WORKFLOW: [step-by-step agent workflow]
-PRIORITY: [HIGH/MEDIUM/LOW]
-REASONING: [brief explanation]`;
-
+// Agent-specific prompts
 const AUTONOMOUS_PLANNER_PROMPT = `You are the Planner Agent in a multi-agent AI system.
 
 YOUR RESPONSIBILITIES:
@@ -360,80 +329,30 @@ ESCALATE: [YES/NO]
 REASONING: [brief explanation]
 IMPROVED_RESPONSE: [your improved version]`;
 
-const SAFETY_PROMPT = `You are the Safety Guard Agent in a multi-agent AI system.
-
-YOUR RESPONSIBILITIES:
-1. Monitor all agent outputs for safety concerns
-2. Block unsafe or harmful actions
-3. Require user confirmation for sensitive operations
-4. Maintain audit logs of decisions
-
-YOUR PERMISSIONS: ${JSON.stringify(AGENT_REGISTRY.safety.permissions)}
-YOUR RESTRICTIONS: ${JSON.stringify(AGENT_REGISTRY.safety.restrictions)}
-
-SAFETY CHECKLIST:
-- [ ] No personal harm instructions
-- [ ] No illegal activity guidance
-- [ ] No private data exposure
-- [ ] No unauthorized access attempts
-- [ ] No misinformation on critical topics
-
-OUTPUT FORMAT:
-SAFE: [YES/NO]
-CONCERNS: [list any concerns or "None"]
-ACTION: [ALLOW/BLOCK/REQUIRE_CONFIRMATION]
-REASON: [explanation]`;
-
-// "I don't know" response templates
-const UNCERTAINTY_RESPONSES = [
-  "I don't have enough information to answer that accurately. Would you like me to help you find a reliable source?",
-  "I'm not certain about that specific detail. To give you accurate information, I'd recommend checking with an expert or official source.",
-  "That's outside my area of confidence. I want to be honest rather than give you potentially incorrect information.",
-  "I don't know the answer to that with certainty. Shall I help you find someone who does?",
-];
-
-// Emotion detection patterns
+// Emotion detection
 const detectEmotion = (message: string): "positive" | "neutral" | "negative" | "frustrated" => {
   const lower = message.toLowerCase();
   
   if (
-    lower.includes("frustrated") ||
-    lower.includes("angry") ||
-    lower.includes("annoyed") ||
-    lower.includes("!!!") ||
-    lower.includes("not working") ||
-    lower.includes("doesn't work") ||
-    lower.includes("hate") ||
-    lower.includes("terrible") ||
-    lower.includes("worst")
+    lower.includes("frustrated") || lower.includes("angry") || lower.includes("annoyed") ||
+    lower.includes("!!!") || lower.includes("not working") || lower.includes("doesn't work") ||
+    lower.includes("hate") || lower.includes("terrible") || lower.includes("worst")
   ) {
     return "frustrated";
   }
   
   if (
-    lower.includes("confused") ||
-    lower.includes("don't understand") ||
-    lower.includes("problem") ||
-    lower.includes("issue") ||
-    lower.includes("wrong") ||
-    lower.includes("error") ||
-    lower.includes("failed") ||
-    lower.includes("sad") ||
-    lower.includes("disappointed")
+    lower.includes("confused") || lower.includes("don't understand") || lower.includes("problem") ||
+    lower.includes("issue") || lower.includes("wrong") || lower.includes("error") ||
+    lower.includes("failed") || lower.includes("sad") || lower.includes("disappointed")
   ) {
     return "negative";
   }
   
   if (
-    lower.includes("thank") ||
-    lower.includes("great") ||
-    lower.includes("awesome") ||
-    lower.includes("love") ||
-    lower.includes("excellent") ||
-    lower.includes("perfect") ||
-    lower.includes("amazing") ||
-    lower.includes("wonderful") ||
-    lower.includes("happy") ||
+    lower.includes("thank") || lower.includes("great") || lower.includes("awesome") ||
+    lower.includes("love") || lower.includes("excellent") || lower.includes("perfect") ||
+    lower.includes("amazing") || lower.includes("wonderful") || lower.includes("happy") ||
     lower.includes("!")
   ) {
     return "positive";
@@ -442,11 +361,10 @@ const detectEmotion = (message: string): "positive" | "neutral" | "negative" | "
   return "neutral";
 };
 
-// Detect if message is a goal vs a question - Enhanced for autonomous mode
+// Detect if message is a goal
 const detectGoal = (message: string): { isGoal: boolean; goalDescription: string | null; isAutonomous: boolean } => {
   const lower = message.toLowerCase();
   
-  // Hindi goal patterns
   const hindiGoalPatterns = [
     /मुझे (.*) में मदद करो/i,
     /मुझे (.*) करना है/i,
@@ -457,7 +375,6 @@ const detectGoal = (message: string): { isGoal: boolean; goalDescription: string
     /(.*) करें/i,
   ];
   
-  // English goal patterns
   const englishGoalPatterns = [
     /help me (?:to )?(.*)/i,
     /i want to (.*)/i,
@@ -475,7 +392,6 @@ const detectGoal = (message: string): { isGoal: boolean; goalDescription: string
     /plan (.*)/i,
   ];
 
-  // Check Hindi patterns first
   for (const pattern of hindiGoalPatterns) {
     const match = message.match(pattern);
     if (match?.[1]) {
@@ -483,7 +399,6 @@ const detectGoal = (message: string): { isGoal: boolean; goalDescription: string
     }
   }
 
-  // Check English patterns
   for (const pattern of englishGoalPatterns) {
     const match = message.match(pattern);
     if (match?.[1]) {
@@ -491,7 +406,6 @@ const detectGoal = (message: string): { isGoal: boolean; goalDescription: string
     }
   }
 
-  // Check for imperative sentences (commands)
   const imperativeIndicators = ["schedule", "book", "send", "create", "find", "search", "set", "organize", "prepare", "remind"];
   for (const indicator of imperativeIndicators) {
     if (lower.startsWith(indicator) || lower.includes(`please ${indicator}`)) {
@@ -502,25 +416,22 @@ const detectGoal = (message: string): { isGoal: boolean; goalDescription: string
   return { isGoal: false, goalDescription: null, isAutonomous: false };
 };
 
-// Select appropriate tool based on message
+// Select appropriate tool
 const selectTool = (message: string): { tool: string | null; reason: string } => {
   const lower = message.toLowerCase();
   
   for (const tool of AVAILABLE_TOOLS) {
     for (const trigger of tool.triggers) {
       if (lower.includes(trigger)) {
-        return { 
-          tool: tool.name, 
-          reason: `Selected ${tool.name} tool because message contains "${trigger}"` 
-        };
+        return { tool: tool.name, reason: `Selected ${tool.name} tool` };
       }
     }
   }
   
-  return { tool: null, reason: "Using general reasoning - no specific tool needed" };
+  return { tool: null, reason: "Using general reasoning" };
 };
 
-// Main system prompt with memory, role, and goal awareness
+// Main system prompt
 const createMainPrompt = (
   memories: string[], 
   emotion: string, 
@@ -642,7 +553,7 @@ const compressContext = async (
   return data.choices?.[0]?.message?.content || "";
 };
 
-// Call AI with specific prompt and retry logic
+// Call AI with retry logic
 const callAI = async (
   apiKey: string, 
   systemPrompt: string, 
@@ -673,7 +584,7 @@ const callAI = async (
         await new Promise(r => setTimeout(r, 1000));
         return callAI(apiKey, systemPrompt, messages, maxTokens, retryCount + 1);
       }
-      throw new Error(`AI call failed after ${retryCount + 1} attempts: ${response.status}`);
+      throw new Error("AI_SERVICE_ERROR");
     }
 
     const data = await response.json();
@@ -691,7 +602,28 @@ const callAI = async (
   }
 };
 
+// ===========================================
+// HELPER: Verify session ownership
+// ===========================================
+const verifySessionOwnership = async (
+  supabase: any,
+  sessionId: string,
+  userId: string
+): Promise<boolean> => {
+  const { data } = await supabase
+    .from('user_sessions')
+    .select('id')
+    .eq('session_id', sessionId)
+    .eq('user_id', userId)
+    .single();
+  
+  return !!data;
+};
+
 serve(async (req) => {
+  const origin = req.headers.get('Origin');
+  const corsHeaders = getCorsHeaders(origin);
+
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -699,26 +631,91 @@ serve(async (req) => {
   const startTime = Date.now();
 
   try {
+    // ===========================================
+    // JWT AUTHENTICATION
+    // ===========================================
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      console.error('[omniagent-chat] Missing authorization header');
+      return new Response(
+        JSON.stringify({ error: "Authentication required" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+    const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY");
+    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+
+    if (!LOVABLE_API_KEY || !SUPABASE_URL || !SUPABASE_ANON_KEY) {
+      console.error('[omniagent-chat] Missing required configuration');
+      return new Response(
+        JSON.stringify({ error: "Service temporarily unavailable" }),
+        { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Create anon client with user's JWT for RLS-protected operations
+    const supabaseWithAuth = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      global: { headers: { Authorization: authHeader } }
+    });
+
+    // Verify the user's JWT
+    const { data: { user }, error: authError } = await supabaseWithAuth.auth.getUser();
+    if (authError || !user) {
+      console.error('[omniagent-chat] Invalid JWT:', authError?.message);
+      return new Response(
+        JSON.stringify({ error: "Invalid or expired authentication" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // ===========================================
+    // INPUT VALIDATION
+    // ===========================================
+    let requestBody;
+    try {
+      requestBody = await req.json();
+    } catch {
+      return new Response(
+        JSON.stringify({ error: "Invalid request format" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const validationResult = ChatRequestSchema.safeParse(requestBody);
+    if (!validationResult.success) {
+      console.error('[omniagent-chat] Validation error:', validationResult.error.issues);
+      return new Response(
+        JSON.stringify({ error: "Invalid request parameters" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const { 
       messages, 
       voiceMode, 
       intent, 
       sessionId, 
-      agentRole = "default",
-      isSimulation = false,
-      explainDecision = false
-    } = await req.json();
-    
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
-    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    
-    if (!LOVABLE_API_KEY) {
-      throw new Error("AI service is not configured");
+      agentRole,
+      isSimulation,
+      explainDecision
+    } = validationResult.data;
+
+    // Verify session ownership if sessionId provided
+    if (sessionId) {
+      const ownsSession = await verifySessionOwnership(supabaseWithAuth, sessionId, user.id);
+      if (!ownsSession) {
+        console.error('[omniagent-chat] User does not own session:', sessionId);
+        return new Response(
+          JSON.stringify({ error: "Access denied to this session" }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
     }
 
-    const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
-    const lastMessage = messages?.[messages.length - 1]?.content || '';
+    const lastMessage = messages[messages.length - 1]?.content || '';
     
     // Detect emotion
     const emotion = detectEmotion(lastMessage);
@@ -741,8 +738,8 @@ serve(async (req) => {
     let goalContext: { goal: string; steps: string[]; currentStep: number } | undefined;
     
     if (sessionId && !isSimulation) {
-      // Fetch memories
-      const { data: memoryData } = await supabase
+      // Fetch memories using authenticated client (respects RLS)
+      const { data: memoryData } = await supabaseWithAuth
         .from('conversation_memory')
         .select('memory_type, memory_key, memory_value')
         .eq('session_id', sessionId)
@@ -757,8 +754,8 @@ serve(async (req) => {
         });
       }
 
-      // Fetch active goal
-      const { data: goalData } = await supabase
+      // Fetch active goal using authenticated client
+      const { data: goalData } = await supabaseWithAuth
         .from('agent_goals')
         .select('*')
         .eq('session_id', sessionId)
@@ -771,7 +768,7 @@ serve(async (req) => {
         goalContext = {
           goal: goalData.goal_description,
           steps: [],
-          currentStep: goalData.completed_steps,
+          currentStep: goalData.completed_steps || 0,
         };
       }
     }
@@ -795,13 +792,12 @@ serve(async (req) => {
     let goalSteps: string[] = [];
     let executedActions: Array<{step: number, action: string, status: string, result: string}> = [];
 
-    // ==========================================
+    // ===========================================
     // AUTONOMOUS GOAL EXECUTION MODE
-    // ==========================================
+    // ===========================================
     if (isGoal && isAutonomous && !voiceMode) {
       console.log("=== AUTONOMOUS EXECUTION MODE ===");
       
-      // Step 1: Autonomous Planning - NO QUESTIONS ASKED
       agentActivities.push({ 
         agent: "planner", 
         action: userLanguage === "hi" 
@@ -813,7 +809,6 @@ serve(async (req) => {
       totalRetries += planResult.retries;
       console.log("Autonomous plan:", planResult.content);
 
-      // Parse execution steps with actions
       const stepPattern = /STEP (\d+):\s*([^|]+)\|\s*ACTION:\s*(\w+)\s*\|\s*PARAMS:\s*([^\n]+)/gi;
       let match;
       const parsedSteps: Array<{step: number, description: string, action: string, params: Record<string, string>}> = [];
@@ -834,7 +829,6 @@ serve(async (req) => {
         goalSteps.push(match[2].trim());
       }
 
-      // Fallback: extract simple steps if pattern didn't match
       if (parsedSteps.length === 0) {
         const simpleSteps = planResult.content.match(/STEP \d+:\s*([^\n|]+)/gi);
         if (simpleSteps) {
@@ -853,9 +847,9 @@ serve(async (req) => {
 
       console.log("Parsed steps:", parsedSteps);
 
-      // Save goal to database
+      // Save goal using authenticated client (respects RLS)
       if (sessionId && !isSimulation && goalSteps.length > 0) {
-        await supabase.from('agent_goals').insert({
+        await supabaseWithAuth.from('agent_goals').insert({
           session_id: sessionId,
           goal_description: goalDescription || lastMessage,
           total_steps: goalSteps.length,
@@ -864,7 +858,6 @@ serve(async (req) => {
         });
       }
 
-      // Step 2: Execute each step autonomously
       let stepResults: string[] = [];
       let requiresConfirmation = false;
       
@@ -874,7 +867,6 @@ serve(async (req) => {
           action: `${RESPONSES.stepExecuting[userLanguage]} ${step.step}: ${step.description}` 
         });
 
-        // Execute the desktop action
         const actionResult = await executeDesktopAction(step.action, step.params);
         
         executedActions.push({
@@ -892,13 +884,11 @@ serve(async (req) => {
         }
       }
 
-      // Step 3: Verify and generate completion report
       agentActivities.push({ 
         agent: "evaluator", 
         action: RESPONSES.verifying[userLanguage]
       });
 
-      // Generate final response in user's language
       const completionPrompt = userLanguage === "hi" 
         ? `आपने निम्नलिखित लक्ष्य पूरा किया: "${goalDescription}"
            
@@ -916,7 +906,6 @@ Write a brief, professional completion report. Tell the user what was accomplish
       const reportMessages = [{ role: "user" as const, content: completionPrompt }];
       const reportResult = await callAI(LOVABLE_API_KEY, SUPPORT_PROMPT, reportMessages, 400);
       
-      // Build final response
       finalResponse = `${RESPONSES.goalStarted[userLanguage]}\n\n`;
       finalResponse += `**${userLanguage === "hi" ? "निष्पादित कार्य" : "Executed Tasks"}:**\n`;
       finalResponse += stepResults.join('\n') + '\n\n';
@@ -937,22 +926,19 @@ Write a brief, professional completion report. Tell the user what was accomplish
       reasoning = `Autonomous execution of ${parsedSteps.length} steps completed. Actions: ${parsedSteps.map(s => s.action).join(', ')}`;
 
     } else if (isComplexTask && !voiceMode) {
-      // Step 1: Planner Agent (non-autonomous complex task)
       agentActivities.push({ agent: "planner", action: isGoal ? "Breaking down goal into steps" : "Analyzing request and creating plan" });
       const planResult = await callAI(LOVABLE_API_KEY, PLANNER_PROMPT, messages, 200);
       totalRetries += planResult.retries;
       console.log("Planner output:", planResult.content);
 
-      // Extract goal steps if applicable
       if (isGoal && goalDescription) {
         const stepMatches = planResult.content.match(/STEP \d+:\s*([^\n|]+)/gi);
         if (stepMatches) {
           goalSteps = stepMatches.map(s => s.replace(/STEP \d+:\s*/i, '').split('|')[0].trim());
         }
         
-        // Save goal to database (skip in simulation)
         if (sessionId && !isSimulation && goalSteps.length > 0) {
-          await supabase.from('agent_goals').insert({
+          await supabaseWithAuth.from('agent_goals').insert({
             session_id: sessionId,
             goal_description: goalDescription,
             total_steps: goalSteps.length,
@@ -962,12 +948,10 @@ Write a brief, professional completion report. Tell the user what was accomplish
         }
       }
 
-      // Step 2: Tool Selection
       if (selectedTool) {
         agentActivities.push({ agent: "executor", action: `Selected ${selectedTool} tool: ${toolReason}` });
       }
 
-      // Step 3: Executor Agent
       agentActivities.push({ agent: "executor", action: "Executing the plan" });
       const executorMessages = [
         ...(contextSummary ? [{ role: "system" as const, content: `Previous conversation summary: ${contextSummary}` }] : []),
@@ -978,19 +962,16 @@ Write a brief, professional completion report. Tell the user what was accomplish
       totalRetries += execResult.retries;
       console.log("Executor output:", execResult.content);
 
-      // Step 4: Support Agent (emotion-aware)
       agentActivities.push({ agent: "support", action: "Adding empathy and clarity" });
       const supportPrompt = SUPPORT_PROMPT + `\n\nUser emotion: ${emotion}. Adjust tone accordingly.`;
       const supportMessages = [...messages, { role: "assistant" as const, content: execResult.content }];
       const supportResult = await callAI(LOVABLE_API_KEY, supportPrompt, supportMessages, 400);
       totalRetries += supportResult.retries;
 
-      // Step 5: Evaluator Agent
       agentActivities.push({ agent: "evaluator", action: "Reviewing and improving response" });
       const evalMessages = [{ role: "user" as const, content: `Review this response:\n${supportResult.content}` }];
       const evalResult = await callAI(LOVABLE_API_KEY, EVALUATOR_PROMPT, evalMessages, 500);
       
-      // Parse evaluation
       const confMatch = evalResult.content.match(/CONFIDENCE:\s*(HIGH|MEDIUM|LOW)/i);
       const escMatch = evalResult.content.match(/ESCALATE:\s*(YES|NO)/i);
       const reasonMatch = evalResult.content.match(/REASONING:\s*([^\n]+)/i);
@@ -1002,7 +983,6 @@ Write a brief, professional completion report. Tell the user what was accomplish
       finalResponse = respMatch?.[1]?.trim() || supportResult.content;
 
     } else {
-      // Simple request - single agent with emotion awareness
       const mainPrompt = createMainPrompt(
         existingMemories, 
         emotion, 
@@ -1012,7 +992,6 @@ Write a brief, professional completion report. Tell the user what was accomplish
         isSimulation
       );
       
-      // Add context summary if available
       const contextMessages = contextSummary 
         ? [{ role: "system" as const, content: `Previous conversation summary: ${contextSummary}` }, ...messages]
         : messages;
@@ -1021,7 +1000,6 @@ Write a brief, professional completion report. Tell the user what was accomplish
       finalResponse = result.content;
       totalRetries = result.retries;
       
-      // Quick confidence check
       if (emotion === "frustrated" || lastMessage.includes("?")) {
         confidence = "medium";
       }
@@ -1031,16 +1009,15 @@ Write a brief, professional completion report. Tell the user what was accomplish
       }
     }
 
-    // Add explain-my-decision if requested
     if (explainDecision && reasoning) {
       finalResponse += `\n\n---\n**Why I answered this way:**\n${reasoning}`;
     }
 
-    // Store new memories (skip in simulation mode)
+    // Store new memories using authenticated client (respects RLS)
     if (sessionId && !isSimulation) {
       const newMemories = extractMemories(lastMessage);
       for (const memory of newMemories) {
-        await supabase
+        await supabaseWithAuth
           .from('conversation_memory')
           .insert({
             session_id: sessionId,
@@ -1050,9 +1027,10 @@ Write a brief, professional completion report. Tell the user what was accomplish
           });
       }
 
-      // Log analytics
+      // Log analytics - use service role for system metrics only
+      const supabaseService = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY!);
       const responseTime = Date.now() - startTime;
-      await supabase.from('agent_analytics').insert({
+      await supabaseService.from('agent_analytics').insert({
         session_id: sessionId,
         intent: intent || "General Question",
         task_success: !shouldEscalate,
@@ -1097,16 +1075,14 @@ Write a brief, professional completion report. Tell the user what was accomplish
     );
 
   } catch (error) {
-    console.error("Error in omniagent-chat:", error);
+    console.error("[omniagent-chat] Error:", error);
     
-    const errorMessage = error instanceof Error ? error.message : "";
-    const userMessage = errorMessage.includes("configured") || errorMessage.includes("unavailable")
-      ? errorMessage
-      : "I apologize, but I encountered an issue. Please try again, or let me know if I can help with something else.";
-    
+    // Generic error message - never expose internal details
     return new Response(
-      JSON.stringify({ error: userMessage, errorType: "general" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({ 
+        error: "I apologize, but I encountered an issue. Please try again." 
+      }),
+      { status: 500, headers: { ...getCorsHeaders(req.headers.get('Origin')), "Content-Type": "application/json" } }
     );
   }
 });
