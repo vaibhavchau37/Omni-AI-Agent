@@ -19,6 +19,9 @@ interface ChatResponse {
   toolReason?: string;
   isGoal?: boolean;
   goalSteps?: string[];
+  executedActions?: Array<{step: number, action: string, status: string, result: string}>;
+  isAutonomous?: boolean;
+  userLanguage?: "hi" | "en";
   retryCount?: number;
   isSimulation?: boolean;
 }
@@ -95,6 +98,9 @@ export const sendChatMessage = async (
       toolReason: data.toolReason,
       isGoal: data.isGoal,
       goalSteps: data.goalSteps,
+      executedActions: data.executedActions,
+      isAutonomous: data.isAutonomous,
+      userLanguage: data.userLanguage,
       retryCount: data.retryCount,
       isSimulation: data.isSimulation,
     };
