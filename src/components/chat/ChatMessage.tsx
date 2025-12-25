@@ -12,6 +12,10 @@ interface ChatMessageProps {
   confidence?: "high" | "medium" | "low";
   emotion?: "positive" | "neutral" | "negative" | "frustrated";
   showEscalation?: boolean;
+  selectedTool?: string;
+  toolReason?: string;
+  reasoning?: string;
+  retryCount?: number;
   onSpeak?: () => void;
   isSpeaking?: boolean;
 }

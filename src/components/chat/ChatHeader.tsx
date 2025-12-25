@@ -5,6 +5,9 @@ import { toast } from "@/hooks/use-toast";
 
 interface ChatHeaderProps {
   onClearSession?: () => void;
+  onOpenAnalytics?: () => void;
+  explainMode?: boolean;
+  onExplainModeToggle?: () => void;
 }
 
 export const ChatHeader = ({ onClearSession }: ChatHeaderProps) => {
