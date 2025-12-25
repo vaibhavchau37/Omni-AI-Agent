@@ -14,6 +14,81 @@ export type Database = {
   }
   public: {
     Tables: {
+      agent_analytics: {
+        Row: {
+          agent_role: string | null
+          confidence: string | null
+          created_at: string
+          emotion: string | null
+          id: string
+          intent: string | null
+          is_simulation: boolean | null
+          response_time_ms: number | null
+          retry_count: number | null
+          session_id: string
+          task_success: boolean | null
+        }
+        Insert: {
+          agent_role?: string | null
+          confidence?: string | null
+          created_at?: string
+          emotion?: string | null
+          id?: string
+          intent?: string | null
+          is_simulation?: boolean | null
+          response_time_ms?: number | null
+          retry_count?: number | null
+          session_id: string
+          task_success?: boolean | null
+        }
+        Update: {
+          agent_role?: string | null
+          confidence?: string | null
+          created_at?: string
+          emotion?: string | null
+          id?: string
+          intent?: string | null
+          is_simulation?: boolean | null
+          response_time_ms?: number | null
+          retry_count?: number | null
+          session_id?: string
+          task_success?: boolean | null
+        }
+        Relationships: []
+      }
+      agent_goals: {
+        Row: {
+          completed_steps: number | null
+          created_at: string
+          goal_description: string
+          id: string
+          session_id: string
+          status: string | null
+          total_steps: number | null
+          updated_at: string
+        }
+        Insert: {
+          completed_steps?: number | null
+          created_at?: string
+          goal_description: string
+          id?: string
+          session_id: string
+          status?: string | null
+          total_steps?: number | null
+          updated_at?: string
+        }
+        Update: {
+          completed_steps?: number | null
+          created_at?: string
+          goal_description?: string
+          id?: string
+          session_id?: string
+          status?: string | null
+          total_steps?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       conversation_memory: {
         Row: {
           created_at: string
@@ -41,6 +116,30 @@ export type Database = {
           memory_value?: string
           session_id?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      conversation_summaries: {
+        Row: {
+          created_at: string
+          id: string
+          message_count: number | null
+          session_id: string
+          summary: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message_count?: number | null
+          session_id: string
+          summary: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message_count?: number | null
+          session_id?: string
+          summary?: string
         }
         Relationships: []
       }

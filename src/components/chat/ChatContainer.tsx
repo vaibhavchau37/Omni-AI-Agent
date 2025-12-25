@@ -2,7 +2,8 @@ import { useRef, useEffect } from "react";
 import { ChatMessage } from "./ChatMessage";
 import { TypingIndicator } from "./TypingIndicator";
 import { AgentActivityLog, AgentActivity } from "./AgentActivityLog";
-import { Zap, MessageSquare, Calendar, HelpCircle, Wrench, Search, Brain, Users } from "lucide-react";
+import { GoalTracker } from "./GoalTracker";
+import { Zap, MessageSquare, Calendar, Wrench, Users, Target, Brain, BarChart3 } from "lucide-react";
 
 interface Message {
   id: string;
@@ -12,6 +13,10 @@ interface Message {
   confidence?: "high" | "medium" | "low";
   emotion?: "positive" | "neutral" | "negative" | "frustrated";
   showEscalation?: boolean;
+  selectedTool?: string;
+  toolReason?: string;
+  reasoning?: string;
+  retryCount?: number;
 }
 
 interface ChatContainerProps {
@@ -20,14 +25,16 @@ interface ChatContainerProps {
   agentActivities: AgentActivity[];
   onSpeak?: (content: string) => void;
   speakingMessageId?: string | null;
+  currentGoal?: { goal: string; steps: string[]; currentStep: number } | null;
 }
 
 const capabilities = [
   { icon: Brain, label: "Multi-Agent AI", desc: "Collaborative thinking" },
-  { icon: MessageSquare, label: "Smart Replies", desc: "Context-aware" },
-  { icon: Wrench, label: "Task Execution", desc: "Step-by-step" },
+  { icon: Target, label: "Goal-Oriented", desc: "Step-by-step goals" },
+  { icon: Wrench, label: "Tool Selection", desc: "Smart automation" },
   { icon: Calendar, label: "Scheduling", desc: "Appointments" },
-  { icon: Users, label: "Escalation", desc: "Human support" },
+  { icon: Users, label: "Role-Based", desc: "Adaptive behavior" },
+  { icon: BarChart3, label: "Analytics", desc: "Track performance" },
 ];
 
 export const ChatContainer = ({ 
@@ -35,7 +42,8 @@ export const ChatContainer = ({
   isTyping, 
   agentActivities,
   onSpeak, 
-  speakingMessageId 
+  speakingMessageId,
+  currentGoal
 }: ChatContainerProps) => {
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -55,13 +63,13 @@ export const ChatContainer = ({
               Welcome to <span className="gradient-text">OmniAgent</span>
             </h2>
             <p className="text-muted-foreground max-w-md mx-auto mb-2">
-              Your intelligent multi-agent AI assistant with memory, emotion detection, and self-evaluation.
+              Enterprise-grade multi-agent AI with goals, roles, analytics, and self-improvement.
             </p>
             <p className="text-xs text-muted-foreground/70 mb-8">
-              Try: "Hi, my name is Vaibhav" or ask a complex question!
+              Try: "Help me prepare for a job interview" or enable Sandbox mode for testing!
             </p>
             
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3 max-w-2xl mx-auto">
+            <div className="grid grid-cols-2 md:grid-cols-6 gap-3 max-w-3xl mx-auto">
               {capabilities.map((cap, index) => (
                 <div
                   key={cap.label}
@@ -77,6 +85,14 @@ export const ChatContainer = ({
           </div>
         )}
 
+        {/* Goal Tracker */}
+        <GoalTracker 
+          goal={currentGoal?.goal || ""} 
+          steps={currentGoal?.steps || []} 
+          currentStep={currentGoal?.currentStep || 0}
+          isVisible={!!currentGoal}
+        />
+
         {messages.map((message) => (
           <ChatMessage 
             key={message.id} 
@@ -86,6 +102,10 @@ export const ChatContainer = ({
             confidence={message.confidence}
             emotion={message.emotion}
             showEscalation={message.showEscalation}
+            selectedTool={message.selectedTool}
+            toolReason={message.toolReason}
+            reasoning={message.reasoning}
+            retryCount={message.retryCount}
             onSpeak={message.role === "assistant" && onSpeak ? () => onSpeak(message.content) : undefined}
             isSpeaking={speakingMessageId === message.id}
           />
