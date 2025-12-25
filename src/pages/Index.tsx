@@ -2,11 +2,14 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { ChatHeader } from "@/components/chat/ChatHeader";
 import { ChatContainer } from "@/components/chat/ChatContainer";
 import { ChatInput } from "@/components/chat/ChatInput";
+import { RoleSelector, AgentRole } from "@/components/chat/RoleSelector";
+import { GoalTracker } from "@/components/chat/GoalTracker";
+import { AnalyticsDashboard } from "@/components/chat/AnalyticsDashboard";
 import { AgentActivity } from "@/components/chat/AgentActivityLog";
 import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 import { useTextToSpeech } from "@/hooks/useTextToSpeech";
 import { toast } from "@/hooks/use-toast";
-import { sendChatMessage } from "@/services/chatService";
+import { sendChatMessage, clearSession } from "@/services/chatService";
 
 interface Message {
   id: string;
@@ -16,6 +19,10 @@ interface Message {
   confidence?: "high" | "medium" | "low";
   emotion?: "positive" | "neutral" | "negative" | "frustrated";
   showEscalation?: boolean;
+  selectedTool?: string;
+  toolReason?: string;
+  reasoning?: string;
+  retryCount?: number;
 }
 
 type IntentType = 
@@ -53,6 +60,11 @@ const Index = () => {
   const [isVoiceMode, setIsVoiceMode] = useState(false);
   const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
   const [agentActivities, setAgentActivities] = useState<AgentActivity[]>([]);
+  const [agentRole, setAgentRole] = useState<AgentRole>("default");
+  const [isSimulation, setIsSimulation] = useState(false);
+  const [showAnalytics, setShowAnalytics] = useState(false);
+  const [currentGoal, setCurrentGoal] = useState<{ goal: string; steps: string[]; currentStep: number } | null>(null);
+  const [explainMode, setExplainMode] = useState(false);
   const conversationHistory = useRef<Array<{ role: "user" | "assistant"; content: string }>>([]);
   
   const { isListening, transcript, toggleListening, resetTranscript } = useSpeechRecognition();
@@ -78,6 +90,10 @@ const Index = () => {
       confidence?: "high" | "medium" | "low";
       emotion?: "positive" | "neutral" | "negative" | "frustrated";
       showEscalation?: boolean;
+      selectedTool?: string;
+      toolReason?: string;
+      reasoning?: string;
+      retryCount?: number;
     }
   ): string => {
     const id = Date.now().toString();
@@ -105,7 +121,6 @@ const Index = () => {
       }, index * 800);
     });
 
-    // Mark all complete after last one
     setTimeout(() => {
       setAgentActivities(prev => prev.map(a => ({ ...a, status: "complete" as const })));
     }, activities.length * 800 + 500);
@@ -129,9 +144,17 @@ const Index = () => {
     setMessages([]);
     conversationHistory.current = [];
     setAgentActivities([]);
+    setCurrentGoal(null);
+    clearSession();
     stop();
     setSpeakingMessageId(null);
-  }, [stop]);
+    
+    if (isSimulation) {
+      toast({ title: "Sandbox cleared", description: "Test session reset (no data saved)" });
+    } else {
+      toast({ title: "Session cleared", description: "Starting fresh conversation" });
+    }
+  }, [stop, isSimulation]);
 
   const handleSendMessage = async (content: string) => {
     const intent = classifyIntent(content);
@@ -143,12 +166,43 @@ const Index = () => {
       const response = await sendChatMessage(
         [...conversationHistory.current],
         isVoiceMode,
-        intent
+        intent,
+        {
+          agentRole,
+          isSimulation,
+          explainDecision: explainMode,
+        }
       );
 
       // Simulate agent activities if returned
       if (response.agentActivities) {
         simulateAgentActivity(response.agentActivities);
+      }
+
+      // Handle goal tracking
+      if (response.isGoal && response.goalSteps && response.goalSteps.length > 0) {
+        setCurrentGoal({
+          goal: content,
+          steps: response.goalSteps,
+          currentStep: 0,
+        });
+      }
+
+      // Show retry notification if retries occurred
+      if (response.retryCount && response.retryCount > 0) {
+        toast({
+          title: "Retry Recovery",
+          description: `Successfully recovered after ${response.retryCount} retry attempt(s)`,
+        });
+      }
+
+      // Simulation mode indicator
+      if (response.isSimulation) {
+        toast({
+          title: "🧪 Sandbox Mode",
+          description: "This interaction was not saved",
+          variant: "default",
+        });
       }
 
       if (response.error) {
@@ -174,7 +228,11 @@ const Index = () => {
           intent: response.intent || intent,
           confidence: response.confidence,
           emotion: response.emotion,
-          showEscalation: response.shouldEscalate
+          showEscalation: response.shouldEscalate,
+          selectedTool: response.selectedTool,
+          toolReason: response.toolReason,
+          reasoning: response.reasoning,
+          retryCount: response.retryCount,
         });
         
         if (isVoiceMode) {
@@ -215,14 +273,40 @@ const Index = () => {
 
   return (
     <div className="flex flex-col h-screen bg-background">
-      <ChatHeader onClearSession={handleClearSession} />
+      <ChatHeader 
+        onClearSession={handleClearSession} 
+        onOpenAnalytics={() => setShowAnalytics(true)}
+        explainMode={explainMode}
+        onExplainModeToggle={() => setExplainMode(!explainMode)}
+      />
+      
+      {/* Role Selector Bar */}
+      <div className="border-b border-border/50 px-4 py-2 bg-secondary/20">
+        <div className="max-w-4xl mx-auto flex items-center justify-between">
+          <RoleSelector 
+            currentRole={agentRole}
+            onRoleChange={setAgentRole}
+            isSimulation={isSimulation}
+            onSimulationToggle={() => setIsSimulation(!isSimulation)}
+          />
+          
+          {isSimulation && (
+            <span className="text-xs text-yellow-400 bg-yellow-500/10 px-2 py-1 rounded-md">
+              Sandbox Mode - No data saved
+            </span>
+          )}
+        </div>
+      </div>
+      
       <ChatContainer 
         messages={messages} 
         isTyping={isTyping}
         agentActivities={agentActivities}
         onSpeak={handleSpeak}
         speakingMessageId={speakingMessageId}
+        currentGoal={currentGoal}
       />
+      
       <div className="border-t border-border/50 p-4 pb-6">
         <div className="max-w-4xl mx-auto">
           <ChatInput
@@ -233,6 +317,11 @@ const Index = () => {
           />
         </div>
       </div>
+      
+      <AnalyticsDashboard 
+        isOpen={showAnalytics} 
+        onClose={() => setShowAnalytics(false)} 
+      />
     </div>
   );
 };

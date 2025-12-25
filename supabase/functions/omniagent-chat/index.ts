@@ -7,12 +7,61 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Available tools for agent
+const AVAILABLE_TOOLS = [
+  { name: "search", description: "Search for information", triggers: ["find", "search", "look up"] },
+  { name: "calendar", description: "Schedule appointments", triggers: ["schedule", "book", "appointment"] },
+  { name: "email", description: "Send emails", triggers: ["email", "send message", "mail"] },
+  { name: "task", description: "Create and manage tasks", triggers: ["task", "todo", "remind"] },
+  { name: "calculate", description: "Perform calculations", triggers: ["calculate", "compute", "math"] },
+  { name: "analyze", description: "Analyze data or content", triggers: ["analyze", "review", "evaluate"] },
+];
+
+// Role-based behavior configurations
+const ROLE_CONFIGS = {
+  default: {
+    name: "OmniAgent",
+    tone: "professional and friendly",
+    permissions: ["general", "tasks", "information"],
+    greeting: "Hello! I'm OmniAgent, your intelligent AI assistant.",
+  },
+  student_assistant: {
+    name: "Study Buddy",
+    tone: "encouraging and educational",
+    permissions: ["learning", "study", "explanations"],
+    greeting: "Hey there! Ready to learn something awesome today?",
+  },
+  hr_assistant: {
+    name: "HR Assistant",
+    tone: "professional and empathetic",
+    permissions: ["hr", "policies", "onboarding"],
+    greeting: "Welcome! I'm here to help with any HR-related questions.",
+  },
+  customer_support: {
+    name: "Support Agent",
+    tone: "patient and solution-focused",
+    permissions: ["support", "troubleshooting", "refunds"],
+    greeting: "Hi! I'm here to help resolve any issues you're experiencing.",
+  },
+  admin_agent: {
+    name: "Admin Assistant",
+    tone: "efficient and direct",
+    permissions: ["admin", "reports", "system"],
+    greeting: "Admin mode active. How can I assist with system operations?",
+  },
+};
+
 // Multi-Agent System Prompts
 const PLANNER_PROMPT = `You are the Planner Agent. Your job is to:
 1. Analyze the user's request
 2. Break down complex tasks into steps
 3. Identify what information is needed
 4. Create an execution plan
+
+For GOAL-ORIENTED requests (user gives a goal like "help me prepare for X"):
+- Break the goal into 3-5 actionable steps
+- Format as: STEP 1: [action], STEP 2: [action], etc.
+- Include progress markers
 
 Respond with a brief plan in 2-3 bullet points. Be concise.`;
 
@@ -21,6 +70,8 @@ const EXECUTOR_PROMPT = `You are the Executor Agent. Your job is to:
 2. Execute each step logically
 3. Gather and process information
 4. Prepare the response content
+
+If a step fails, note it and suggest an alternative approach.
 
 Execute the task and provide the result.`;
 
@@ -43,13 +94,13 @@ const EVALUATOR_PROMPT = `You are the Evaluator Agent. Your job is to:
 Respond with:
 CONFIDENCE: [HIGH/MEDIUM/LOW]
 ESCALATE: [YES/NO]
+REASONING: [brief explanation of why you gave this confidence]
 IMPROVED_RESPONSE: [your improved version]`;
 
 // Emotion detection patterns
 const detectEmotion = (message: string): "positive" | "neutral" | "negative" | "frustrated" => {
   const lower = message.toLowerCase();
   
-  // Frustrated indicators
   if (
     lower.includes("frustrated") ||
     lower.includes("angry") ||
@@ -64,7 +115,6 @@ const detectEmotion = (message: string): "positive" | "neutral" | "negative" | "
     return "frustrated";
   }
   
-  // Negative indicators
   if (
     lower.includes("confused") ||
     lower.includes("don't understand") ||
@@ -79,7 +129,6 @@ const detectEmotion = (message: string): "positive" | "neutral" | "negative" | "
     return "negative";
   }
   
-  // Positive indicators
   if (
     lower.includes("thank") ||
     lower.includes("great") ||
@@ -98,13 +147,63 @@ const detectEmotion = (message: string): "positive" | "neutral" | "negative" | "
   return "neutral";
 };
 
-// Main system prompt with memory
-const createMainPrompt = (memories: string[], emotion: string, voiceMode: boolean) => {
+// Detect if message is a goal vs a question
+const detectGoal = (message: string): { isGoal: boolean; goalDescription: string | null } => {
+  const lower = message.toLowerCase();
+  const goalPatterns = [
+    /help me (?:to )?(.*)/i,
+    /i want to (.*)/i,
+    /i need to (.*)/i,
+    /prepare (?:me )?for (.*)/i,
+    /teach me (.*)/i,
+    /guide me (?:to|through) (.*)/i,
+    /show me how to (.*)/i,
+  ];
+
+  for (const pattern of goalPatterns) {
+    const match = message.match(pattern);
+    if (match?.[1]) {
+      return { isGoal: true, goalDescription: match[1].trim() };
+    }
+  }
+
+  return { isGoal: false, goalDescription: null };
+};
+
+// Select appropriate tool based on message
+const selectTool = (message: string): { tool: string | null; reason: string } => {
+  const lower = message.toLowerCase();
+  
+  for (const tool of AVAILABLE_TOOLS) {
+    for (const trigger of tool.triggers) {
+      if (lower.includes(trigger)) {
+        return { 
+          tool: tool.name, 
+          reason: `Selected ${tool.name} tool because message contains "${trigger}"` 
+        };
+      }
+    }
+  }
+  
+  return { tool: null, reason: "Using general reasoning - no specific tool needed" };
+};
+
+// Main system prompt with memory, role, and goal awareness
+const createMainPrompt = (
+  memories: string[], 
+  emotion: string, 
+  voiceMode: boolean, 
+  role: string,
+  goalContext?: { goal: string; steps: string[]; currentStep: number },
+  isSimulation?: boolean
+) => {
+  const roleConfig = ROLE_CONFIGS[role as keyof typeof ROLE_CONFIGS] || ROLE_CONFIGS.default;
+  
   const emotionGuidance = {
     positive: "The user seems happy. Match their positive energy!",
     neutral: "The user is in a neutral state. Be helpful and professional.",
     negative: "The user seems concerned. Be extra helpful and reassuring.",
-    frustrated: "The user seems frustrated. Be calm, empathetic, and solution-focused. Acknowledge their frustration.",
+    frustrated: "The user seems frustrated. Be calm, empathetic, and solution-focused.",
   };
 
   const memorySection = memories.length > 0 
@@ -115,7 +214,19 @@ const createMainPrompt = (memories: string[], emotion: string, voiceMode: boolea
     ? "\n\nVOICE MODE: Keep response under 3 sentences. Be conversational, no formatting."
     : "";
 
-  return `You are OmniAgent, an intelligent multi-agent AI assistant.
+  const goalSection = goalContext 
+    ? `\n\nACTIVE GOAL: ${goalContext.goal}\nSTEPS: ${goalContext.steps.join(' → ')}\nCURRENT STEP: ${goalContext.currentStep + 1} of ${goalContext.steps.length}`
+    : "";
+
+  const simulationWarning = isSimulation
+    ? "\n\n[SIMULATION MODE] This is a test interaction. Do not save any data."
+    : "";
+
+  return `You are ${roleConfig.name}, an intelligent multi-agent AI assistant.
+
+ROLE: ${roleConfig.name}
+TONE: ${roleConfig.tone}
+PERMISSIONS: ${roleConfig.permissions.join(", ")}
 
 EMOTIONAL CONTEXT: ${emotionGuidance[emotion as keyof typeof emotionGuidance]}
 
@@ -124,7 +235,8 @@ GUIDELINES:
 - Easy to understand, avoid jargon
 - Use the user's name if known
 - Always ask if they need anything else
-- If unsure, admit it honestly${memorySection}${voiceGuidance}`;
+- If unsure, admit it honestly
+- When explaining decisions, be transparent${memorySection}${voiceGuidance}${goalSection}${simulationWarning}`;
 };
 
 // Extract memories from message
@@ -164,8 +276,15 @@ const extractMemories = (message: string): Array<{type: string, key: string, val
   return memories;
 };
 
-// Call AI with specific prompt
-const callAI = async (apiKey: string, systemPrompt: string, messages: Array<{role: string, content: string}>, maxTokens = 300) => {
+// Compress long conversation context
+const compressContext = async (
+  apiKey: string, 
+  messages: Array<{role: string, content: string}>
+): Promise<string> => {
+  if (messages.length < 6) return "";
+  
+  const messagesText = messages.slice(0, -3).map(m => `${m.role}: ${m.content}`).join('\n');
+  
   const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -175,20 +294,69 @@ const callAI = async (apiKey: string, systemPrompt: string, messages: Array<{rol
     body: JSON.stringify({
       model: "google/gemini-2.5-flash",
       messages: [
-        { role: "system", content: systemPrompt },
-        ...messages,
+        { 
+          role: "system", 
+          content: "Summarize this conversation in 2-3 sentences. Keep only important facts, decisions, and context. Be extremely concise." 
+        },
+        { role: "user", content: messagesText },
       ],
-      temperature: 0.7,
-      max_tokens: maxTokens,
+      max_tokens: 150,
     }),
   });
 
-  if (!response.ok) {
-    throw new Error(`AI call failed: ${response.status}`);
-  }
-
+  if (!response.ok) return "";
+  
   const data = await response.json();
   return data.choices?.[0]?.message?.content || "";
+};
+
+// Call AI with specific prompt and retry logic
+const callAI = async (
+  apiKey: string, 
+  systemPrompt: string, 
+  messages: Array<{role: string, content: string}>, 
+  maxTokens = 300,
+  retryCount = 0
+): Promise<{ content: string; retries: number }> => {
+  try {
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [
+          { role: "system", content: systemPrompt },
+          ...messages,
+        ],
+        max_tokens: maxTokens,
+      }),
+    });
+
+    if (!response.ok) {
+      if (retryCount < 2) {
+        console.log(`AI call failed, retrying (attempt ${retryCount + 2})...`);
+        await new Promise(r => setTimeout(r, 1000));
+        return callAI(apiKey, systemPrompt, messages, maxTokens, retryCount + 1);
+      }
+      throw new Error(`AI call failed after ${retryCount + 1} attempts: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return { 
+      content: data.choices?.[0]?.message?.content || "", 
+      retries: retryCount 
+    };
+  } catch (error) {
+    if (retryCount < 2) {
+      console.log(`AI call error, retrying (attempt ${retryCount + 2})...`);
+      await new Promise(r => setTimeout(r, 1000));
+      return callAI(apiKey, systemPrompt, messages, maxTokens, retryCount + 1);
+    }
+    throw error;
+  }
 };
 
 serve(async (req) => {
@@ -196,8 +364,18 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const startTime = Date.now();
+
   try {
-    const { messages, voiceMode, intent, sessionId } = await req.json();
+    const { 
+      messages, 
+      voiceMode, 
+      intent, 
+      sessionId, 
+      agentRole = "default",
+      isSimulation = false,
+      explainDecision = false
+    } = await req.json();
     
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
@@ -214,9 +392,20 @@ serve(async (req) => {
     const emotion = detectEmotion(lastMessage);
     console.log("Detected emotion:", emotion);
 
-    // Fetch memories
+    // Detect goal
+    const { isGoal, goalDescription } = detectGoal(lastMessage);
+    console.log("Is goal:", isGoal, goalDescription);
+
+    // Select tool
+    const { tool: selectedTool, reason: toolReason } = selectTool(lastMessage);
+    console.log("Selected tool:", selectedTool, toolReason);
+
+    // Fetch memories (skip in simulation mode)
     let existingMemories: string[] = [];
-    if (sessionId) {
+    let goalContext: { goal: string; steps: string[]; currentStep: number } | undefined;
+    
+    if (sessionId && !isSimulation) {
+      // Fetch memories
       const { data: memoryData } = await supabase
         .from('conversation_memory')
         .select('memory_type, memory_key, memory_value')
@@ -231,54 +420,130 @@ serve(async (req) => {
           return `${m.memory_key}: ${m.memory_value}`;
         });
       }
+
+      // Fetch active goal
+      const { data: goalData } = await supabase
+        .from('agent_goals')
+        .select('*')
+        .eq('session_id', sessionId)
+        .eq('status', 'active')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (goalData) {
+        goalContext = {
+          goal: goalData.goal_description,
+          steps: [], // Would parse from saved data
+          currentStep: goalData.completed_steps,
+        };
+      }
     }
 
-    // Multi-agent collaboration for complex tasks
-    const isComplexTask = intent === "Task Execution" || lastMessage.length > 100;
+    // Context compression for long conversations
+    let contextSummary = "";
+    if (messages.length > 6) {
+      contextSummary = await compressContext(LOVABLE_API_KEY, messages);
+      console.log("Context compressed:", contextSummary.substring(0, 100));
+    }
+
+    // Multi-agent collaboration
+    const isComplexTask = intent === "Task Execution" || lastMessage.length > 100 || isGoal;
     let agentActivities: Array<{agent: string, action: string}> = [];
     
     let finalResponse = "";
     let confidence: "high" | "medium" | "low" = "high";
     let shouldEscalate = false;
+    let reasoning = "";
+    let totalRetries = 0;
+    let goalSteps: string[] = [];
 
     if (isComplexTask && !voiceMode) {
       // Step 1: Planner Agent
-      agentActivities.push({ agent: "planner", action: "Analyzing request and creating plan" });
-      const plan = await callAI(LOVABLE_API_KEY, PLANNER_PROMPT, messages, 150);
-      console.log("Planner output:", plan);
+      agentActivities.push({ agent: "planner", action: isGoal ? "Breaking down goal into steps" : "Analyzing request and creating plan" });
+      const planResult = await callAI(LOVABLE_API_KEY, PLANNER_PROMPT, messages, 200);
+      totalRetries += planResult.retries;
+      console.log("Planner output:", planResult.content);
 
-      // Step 2: Executor Agent
+      // Extract goal steps if applicable
+      if (isGoal && goalDescription) {
+        const stepMatches = planResult.content.match(/STEP \d+:\s*([^\n]+)/gi);
+        if (stepMatches) {
+          goalSteps = stepMatches.map(s => s.replace(/STEP \d+:\s*/i, '').trim());
+        }
+        
+        // Save goal to database (skip in simulation)
+        if (sessionId && !isSimulation && goalSteps.length > 0) {
+          await supabase.from('agent_goals').insert({
+            session_id: sessionId,
+            goal_description: goalDescription,
+            total_steps: goalSteps.length,
+            completed_steps: 0,
+            status: 'active',
+          });
+        }
+      }
+
+      // Step 2: Tool Selection
+      if (selectedTool) {
+        agentActivities.push({ agent: "executor", action: `Selected ${selectedTool} tool: ${toolReason}` });
+      }
+
+      // Step 3: Executor Agent
       agentActivities.push({ agent: "executor", action: "Executing the plan" });
-      const executorMessages = [...messages, { role: "assistant", content: `Plan: ${plan}` }];
-      const execution = await callAI(LOVABLE_API_KEY, EXECUTOR_PROMPT, executorMessages, 300);
-      console.log("Executor output:", execution);
+      const executorMessages = [
+        ...(contextSummary ? [{ role: "system" as const, content: `Previous conversation summary: ${contextSummary}` }] : []),
+        ...messages, 
+        { role: "assistant" as const, content: `Plan: ${planResult.content}` }
+      ];
+      const execResult = await callAI(LOVABLE_API_KEY, EXECUTOR_PROMPT, executorMessages, 400);
+      totalRetries += execResult.retries;
+      console.log("Executor output:", execResult.content);
 
-      // Step 3: Support Agent (emotion-aware)
+      // Step 4: Support Agent (emotion-aware)
       agentActivities.push({ agent: "support", action: "Adding empathy and clarity" });
       const supportPrompt = SUPPORT_PROMPT + `\n\nUser emotion: ${emotion}. Adjust tone accordingly.`;
-      const supportMessages = [...messages, { role: "assistant", content: execution }];
-      const supported = await callAI(LOVABLE_API_KEY, supportPrompt, supportMessages, 300);
+      const supportMessages = [...messages, { role: "assistant" as const, content: execResult.content }];
+      const supportResult = await callAI(LOVABLE_API_KEY, supportPrompt, supportMessages, 400);
+      totalRetries += supportResult.retries;
 
-      // Step 4: Evaluator Agent
+      // Step 5: Evaluator Agent
       agentActivities.push({ agent: "evaluator", action: "Reviewing and improving response" });
-      const evalMessages = [{ role: "user", content: `Review this response:\n${supported}` }];
-      const evaluation = await callAI(LOVABLE_API_KEY, EVALUATOR_PROMPT, evalMessages, 400);
+      const evalMessages = [{ role: "user" as const, content: `Review this response:\n${supportResult.content}` }];
+      const evalResult = await callAI(LOVABLE_API_KEY, EVALUATOR_PROMPT, evalMessages, 500);
       
       // Parse evaluation
-      const confMatch = evaluation.match(/CONFIDENCE:\s*(HIGH|MEDIUM|LOW)/i);
-      const escMatch = evaluation.match(/ESCALATE:\s*(YES|NO)/i);
-      const respMatch = evaluation.match(/IMPROVED_RESPONSE:\s*([\s\S]*)/i);
+      const confMatch = evalResult.content.match(/CONFIDENCE:\s*(HIGH|MEDIUM|LOW)/i);
+      const escMatch = evalResult.content.match(/ESCALATE:\s*(YES|NO)/i);
+      const reasonMatch = evalResult.content.match(/REASONING:\s*([^\n]+)/i);
+      const respMatch = evalResult.content.match(/IMPROVED_RESPONSE:\s*([\s\S]*)/i);
       
       confidence = (confMatch?.[1]?.toLowerCase() || "medium") as "high" | "medium" | "low";
       shouldEscalate = escMatch?.[1]?.toUpperCase() === "YES";
-      finalResponse = respMatch?.[1]?.trim() || supported;
+      reasoning = reasonMatch?.[1]?.trim() || "";
+      finalResponse = respMatch?.[1]?.trim() || supportResult.content;
 
     } else {
       // Simple request - single agent with emotion awareness
-      const mainPrompt = createMainPrompt(existingMemories, emotion, voiceMode);
-      finalResponse = await callAI(LOVABLE_API_KEY, mainPrompt, messages, voiceMode ? 100 : 400);
+      const mainPrompt = createMainPrompt(
+        existingMemories, 
+        emotion, 
+        voiceMode, 
+        agentRole,
+        goalContext,
+        isSimulation
+      );
       
-      // Quick confidence check for simple responses
+      // Add context summary if available
+      const contextMessages = contextSummary 
+        ? [{ role: "system" as const, content: `Previous conversation summary: ${contextSummary}` }, ...messages]
+        : messages;
+      
+      const result = await callAI(LOVABLE_API_KEY, mainPrompt, contextMessages, voiceMode ? 100 : 400);
+      finalResponse = result.content;
+      totalRetries = result.retries;
+      
+      // Quick confidence check
       if (emotion === "frustrated" || lastMessage.includes("?")) {
         confidence = "medium";
       }
@@ -288,8 +553,13 @@ serve(async (req) => {
       }
     }
 
-    // Store new memories
-    if (sessionId) {
+    // Add explain-my-decision if requested
+    if (explainDecision && reasoning) {
+      finalResponse += `\n\n---\n**Why I answered this way:**\n${reasoning}`;
+    }
+
+    // Store new memories (skip in simulation mode)
+    if (sessionId && !isSimulation) {
       const newMemories = extractMemories(lastMessage);
       for (const memory of newMemories) {
         await supabase
@@ -301,9 +571,30 @@ serve(async (req) => {
             memory_value: memory.value,
           });
       }
+
+      // Log analytics
+      const responseTime = Date.now() - startTime;
+      await supabase.from('agent_analytics').insert({
+        session_id: sessionId,
+        intent: intent || "General Question",
+        task_success: !shouldEscalate,
+        confidence,
+        emotion,
+        retry_count: totalRetries,
+        response_time_ms: responseTime,
+        agent_role: agentRole,
+        is_simulation: isSimulation,
+      });
     }
 
-    console.log("Response generated:", { confidence, shouldEscalate, emotion, agentCount: agentActivities.length });
+    console.log("Response generated:", { 
+      confidence, 
+      shouldEscalate, 
+      emotion, 
+      agentCount: agentActivities.length,
+      retries: totalRetries,
+      responseTime: Date.now() - startTime
+    });
 
     return new Response(
       JSON.stringify({ 
@@ -312,7 +603,14 @@ serve(async (req) => {
         confidence,
         emotion,
         shouldEscalate,
-        agentActivities: agentActivities.length > 0 ? agentActivities : undefined
+        agentActivities: agentActivities.length > 0 ? agentActivities : undefined,
+        reasoning: explainDecision ? reasoning : undefined,
+        selectedTool,
+        toolReason: selectedTool ? toolReason : undefined,
+        isGoal,
+        goalSteps: isGoal ? goalSteps : undefined,
+        retryCount: totalRetries,
+        isSimulation,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

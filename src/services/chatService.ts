@@ -14,6 +14,13 @@ interface ChatResponse {
   emotion?: "positive" | "neutral" | "negative" | "frustrated";
   shouldEscalate?: boolean;
   agentActivities?: Array<{agent: string, action: string}>;
+  reasoning?: string;
+  selectedTool?: string;
+  toolReason?: string;
+  isGoal?: boolean;
+  goalSteps?: string[];
+  retryCount?: number;
+  isSimulation?: boolean;
 }
 
 interface ActionResult {
@@ -39,7 +46,12 @@ const getSessionId = (): string => {
 export const sendChatMessage = async (
   messages: ChatMessage[],
   voiceMode: boolean = false,
-  intent?: string
+  intent?: string,
+  options?: {
+    agentRole?: string;
+    isSimulation?: boolean;
+    explainDecision?: boolean;
+  }
 ): Promise<ChatResponse> => {
   try {
     const sessionId = getSessionId();
@@ -49,7 +61,10 @@ export const sendChatMessage = async (
         messages: messages.map(m => ({ role: m.role, content: m.content })),
         voiceMode,
         intent,
-        sessionId
+        sessionId,
+        agentRole: options?.agentRole || "default",
+        isSimulation: options?.isSimulation || false,
+        explainDecision: options?.explainDecision || false,
       },
     });
 
@@ -74,7 +89,14 @@ export const sendChatMessage = async (
       confidence: data.confidence,
       emotion: data.emotion,
       shouldEscalate: data.shouldEscalate,
-      agentActivities: data.agentActivities
+      agentActivities: data.agentActivities,
+      reasoning: data.reasoning,
+      selectedTool: data.selectedTool,
+      toolReason: data.toolReason,
+      isGoal: data.isGoal,
+      goalSteps: data.goalSteps,
+      retryCount: data.retryCount,
+      isSimulation: data.isSimulation,
     };
   } catch (err) {
     console.error("Chat service error:", err);
