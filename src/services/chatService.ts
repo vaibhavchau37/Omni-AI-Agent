@@ -20,17 +20,33 @@ interface ActionResult {
   details?: string;
 }
 
+// Generate or retrieve session ID for memory persistence
+const getSessionId = (): string => {
+  const storageKey = "omniagent_session_id";
+  let sessionId = localStorage.getItem(storageKey);
+  
+  if (!sessionId) {
+    sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    localStorage.setItem(storageKey, sessionId);
+  }
+  
+  return sessionId;
+};
+
 export const sendChatMessage = async (
   messages: ChatMessage[],
   voiceMode: boolean = false,
   intent?: string
 ): Promise<ChatResponse> => {
   try {
+    const sessionId = getSessionId();
+    
     const { data, error } = await supabase.functions.invoke("omniagent-chat", {
       body: { 
         messages: messages.map(m => ({ role: m.role, content: m.content })),
         voiceMode,
-        intent
+        intent,
+        sessionId
       },
     });
 
@@ -89,4 +105,14 @@ export const executeAction = async (
       suggestion: "Try describing your request in a different way."
     };
   }
+};
+
+// Clear session to start fresh conversation
+export const clearSession = (): void => {
+  localStorage.removeItem("omniagent_session_id");
+};
+
+// Get current session ID (for debugging/display)
+export const getCurrentSessionId = (): string | null => {
+  return localStorage.getItem("omniagent_session_id");
 };

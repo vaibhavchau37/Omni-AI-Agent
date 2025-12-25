@@ -139,6 +139,13 @@ const Index = () => {
     }
   }, [messages, speakingMessageId, speak, stop]);
 
+  const handleClearSession = useCallback(() => {
+    setMessages([]);
+    conversationHistory.current = [];
+    stop();
+    setSpeakingMessageId(null);
+  }, [stop]);
+
   const handleSendMessage = async (content: string) => {
     // Add user message
     addMessage("user", content);
@@ -218,7 +225,7 @@ const Index = () => {
 
   return (
     <div className="flex flex-col h-screen bg-background">
-      <ChatHeader />
+      <ChatHeader onClearSession={handleClearSession} />
       <ChatContainer 
         messages={messages} 
         isTyping={isTyping}
