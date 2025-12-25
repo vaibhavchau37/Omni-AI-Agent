@@ -88,15 +88,17 @@ export const sendChatMessageStreaming = async (
 ): Promise<void> => {
   try {
     const sessionId = getSessionId();
-    await ensureUserSession(sessionId);
     
+    // Try to get session but don't require it
     const { data: { session } } = await supabase.auth.getSession();
     
-    // Require valid authentication
-    if (!session?.access_token) {
-      callbacks.onError("Please log in to continue chatting.");
-      return;
+    // If authenticated, link the session to user
+    if (session?.access_token) {
+      await ensureUserSession(sessionId);
     }
+    
+    // Use access token if available, otherwise use anon key
+    const authToken = session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
     
     const response = await fetch(
       `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/omniagent-chat`,
@@ -104,7 +106,7 @@ export const sendChatMessageStreaming = async (
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${session.access_token}`,
+          "Authorization": `Bearer ${authToken}`,
           "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
         },
         body: JSON.stringify({
