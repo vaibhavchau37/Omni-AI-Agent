@@ -51,7 +51,35 @@ const ROLE_CONFIGS = {
   },
 };
 
-// Multi-Agent System Prompts
+// ==========================================
+// PRODUCTION-GRADE PROMPTS WITH GUARDRAILS
+// ==========================================
+
+// Safety topics that require careful handling
+const SAFETY_TOPICS = [
+  "suicide", "self-harm", "harm others", "kill", "weapon", "illegal", 
+  "hack", "exploit", "password", "credit card", "social security",
+  "medical diagnosis", "legal advice", "financial advice"
+];
+
+// Topics where AI should admit uncertainty
+const UNCERTAINTY_TOPICS = [
+  "future predictions", "personal opinion", "medical symptoms",
+  "legal matters", "investment advice", "specific prices", "exact dates"
+];
+
+// Check if message contains safety concerns
+const checkSafety = (message: string): { isSafe: boolean; concern: string | null } => {
+  const lower = message.toLowerCase();
+  for (const topic of SAFETY_TOPICS) {
+    if (lower.includes(topic)) {
+      return { isSafe: false, concern: topic };
+    }
+  }
+  return { isSafe: true, concern: null };
+};
+
+// Multi-Agent System Prompts with strict consistency rules
 const PLANNER_PROMPT = `You are the Planner Agent. Your job is to:
 1. Analyze the user's request
 2. Break down complex tasks into steps
@@ -63,6 +91,12 @@ For GOAL-ORIENTED requests (user gives a goal like "help me prepare for X"):
 - Format as: STEP 1: [action], STEP 2: [action], etc.
 - Include progress markers
 
+CONSISTENCY RULES (NEVER BREAK):
+- Always maintain professional tone
+- Never provide harmful, illegal, or dangerous information
+- If unsure, plan to ask for clarification
+- Keep steps actionable and measurable
+
 Respond with a brief plan in 2-3 bullet points. Be concise.`;
 
 const EXECUTOR_PROMPT = `You are the Executor Agent. Your job is to:
@@ -71,7 +105,16 @@ const EXECUTOR_PROMPT = `You are the Executor Agent. Your job is to:
 3. Gather and process information
 4. Prepare the response content
 
-If a step fails, note it and suggest an alternative approach.
+SAFETY GUARDRAILS (MANDATORY):
+- Never provide medical diagnoses - suggest consulting professionals
+- Never provide legal advice - recommend legal counsel
+- Never provide specific financial advice - suggest financial advisors
+- Never share harmful or dangerous information
+- If you cannot complete a step safely, explain why
+
+FAILURE RECOVERY:
+- If a step fails, note it and suggest an alternative approach
+- Always provide a helpful fallback response
 
 Execute the task and provide the result.`;
 
@@ -81,8 +124,17 @@ const SUPPORT_PROMPT = `You are the Support Agent. Your job is to:
 3. Add helpful context when needed
 4. Detect user emotion and adjust tone
 
-If user seems frustrated, be extra empathetic.
-If user seems happy, match their energy.`;
+TONE CONSISTENCY (ALWAYS FOLLOW):
+- Professional yet approachable
+- Never condescending or dismissive
+- Match user's urgency appropriately
+- Use "I" statements, not "we"
+
+EMOTION-BASED ADJUSTMENTS:
+- Frustrated user: Be calm, empathetic, solution-focused. Acknowledge their frustration.
+- Positive user: Match their energy warmly
+- Confused user: Be patient, use simpler language
+- Neutral user: Be helpful and professional`;
 
 const EVALUATOR_PROMPT = `You are the Evaluator Agent. Your job is to:
 1. Review the response for accuracy
@@ -91,11 +143,31 @@ const EVALUATOR_PROMPT = `You are the Evaluator Agent. Your job is to:
 4. Rate confidence (HIGH, MEDIUM, LOW)
 5. Flag if human escalation is needed
 
+CONFIDENCE RATING RULES:
+- HIGH: Clear factual information, well-established topics, simple tasks
+- MEDIUM: Complex topics, some uncertainty, needs verification
+- LOW: Speculation, unknown areas, sensitive topics, requires expert
+
+ESCALATION TRIGGERS (set ESCALATE: YES):
+- User explicitly requests human help
+- Topic requires professional expertise (medical, legal, financial)
+- User seems very frustrated or upset
+- AI cannot provide adequate help
+- Safety concerns detected
+
 Respond with:
 CONFIDENCE: [HIGH/MEDIUM/LOW]
 ESCALATE: [YES/NO]
 REASONING: [brief explanation of why you gave this confidence]
 IMPROVED_RESPONSE: [your improved version]`;
+
+// "I don't know" response templates
+const UNCERTAINTY_RESPONSES = [
+  "I don't have enough information to answer that accurately. Would you like me to help you find a reliable source?",
+  "I'm not certain about that specific detail. To give you accurate information, I'd recommend checking with an expert or official source.",
+  "That's outside my area of confidence. I want to be honest rather than give you potentially incorrect information.",
+  "I don't know the answer to that with certainty. Shall I help you find someone who does?",
+];
 
 // Emotion detection patterns
 const detectEmotion = (message: string): "positive" | "neutral" | "negative" | "frustrated" => {
