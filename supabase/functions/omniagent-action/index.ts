@@ -4,17 +4,16 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 // ===========================================
-// CORS CONFIGURATION - Restrict to allowed origins
+// CORS CONFIGURATION - Environment-based origins
 // ===========================================
-const ALLOWED_ORIGINS = [
-  'https://ymbgmsvmesejppjgothe.lovableproject.com',
-  'http://localhost:5173',
-  'http://localhost:8080',
-  'http://localhost:3000',
-];
+const PRODUCTION_ORIGINS = ['https://ymbgmsvmesejppjgothe.lovableproject.com'];
+const DEV_ORIGINS = ['http://localhost:5173', 'http://localhost:8080', 'http://localhost:3000'];
+const ALLOWED_ORIGINS = Deno.env.get('ENVIRONMENT') === 'production' 
+  ? PRODUCTION_ORIGINS 
+  : [...PRODUCTION_ORIGINS, ...DEV_ORIGINS];
 
 const getCorsHeaders = (origin: string | null) => {
-  const allowedOrigin = origin && ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+  const allowedOrigin = origin && ALLOWED_ORIGINS.includes(origin) ? origin : PRODUCTION_ORIGINS[0];
   return {
     'Access-Control-Allow-Origin': allowedOrigin,
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
