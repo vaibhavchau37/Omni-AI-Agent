@@ -46,6 +46,28 @@ const getSessionId = (): string => {
   return sessionId;
 };
 
+// Ensure user session is linked to authenticated user
+const ensureUserSession = async (sessionId: string): Promise<void> => {
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) return;
+  
+  // Check if session is already linked
+  const { data: existingSession } = await supabase
+    .from('user_sessions')
+    .select('id')
+    .eq('session_id', sessionId)
+    .single();
+  
+  if (!existingSession) {
+    // Link this session to the authenticated user
+    await supabase.from('user_sessions').insert({
+      session_id: sessionId,
+      user_id: user.id,
+    });
+  }
+};
+
 export const sendChatMessage = async (
   messages: ChatMessage[],
   voiceMode: boolean = false,
@@ -58,6 +80,12 @@ export const sendChatMessage = async (
 ): Promise<ChatResponse> => {
   try {
     const sessionId = getSessionId();
+    
+    // Ensure session is linked to user
+    await ensureUserSession(sessionId);
+    
+    // Get current session for auth header
+    const { data: { session } } = await supabase.auth.getSession();
     
     const { data, error } = await supabase.functions.invoke("omniagent-chat", {
       body: { 
