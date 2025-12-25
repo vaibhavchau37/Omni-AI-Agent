@@ -1,4 +1,4 @@
-import { Sparkles, Zap, RotateCcw, BarChart3, Lightbulb, Settings2 } from "lucide-react";
+import { Sparkles, Zap, RotateCcw, BarChart3, Lightbulb } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { clearSession } from "@/services/chatService";
 import { toast } from "@/hooks/use-toast";
@@ -29,27 +29,27 @@ export const ChatHeader = ({
     }
     toast({
       title: "Conversation reset",
-      description: "Ready for a new session!",
+      description: "Ready for a new session",
     });
   };
 
   return (
-    <header className="glass border-b border-border/40 px-6 py-4">
-      <div className="max-w-5xl mx-auto flex items-center justify-between">
-        {/* Logo & Brand */}
-        <div className="flex items-center gap-4">
-          <div className="relative group">
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-primary/20 via-accent/10 to-primary/5 border border-primary/20 flex items-center justify-center glow-primary group-hover:scale-105 transition-transform">
-              <Zap className="w-5 h-5 text-primary" />
+    <header className="border-b border-border/40 px-4 py-3 bg-card/50 backdrop-blur-sm">
+      <div className="max-w-4xl mx-auto flex items-center justify-between">
+        {/* Brand */}
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary/25 to-accent/15 border border-primary/20 flex items-center justify-center">
+              <Zap className="w-4 h-4 text-primary" />
             </div>
-            <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-success rounded-full border-2 border-background animate-pulse" />
+            <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-success rounded-full border-2 border-background" />
           </div>
           <div>
-            <h1 className="text-lg font-semibold text-foreground flex items-center gap-2">
+            <h1 className="text-base font-semibold text-foreground flex items-center gap-1.5">
               OmniAgent
-              <Sparkles className="w-4 h-4 text-primary/80" />
+              <Sparkles className="w-3.5 h-3.5 text-primary/70" />
             </h1>
-            <p className="text-xs text-muted-foreground">Multi-Agent AI Assistant</p>
+            <p className="text-[10px] text-muted-foreground">Multi-Agent AI</p>
           </div>
         </div>
 
@@ -62,17 +62,15 @@ export const ChatHeader = ({
                 size="sm"
                 onClick={onExplainModeToggle}
                 className={cn(
-                  "h-9 px-3 text-muted-foreground hover:text-foreground gap-2 rounded-xl",
-                  explainMode && "text-primary bg-primary/10 hover:bg-primary/15"
+                  "h-8 px-2.5 gap-1.5 text-xs rounded-lg",
+                  explainMode && "text-primary bg-primary/10"
                 )}
               >
-                <Lightbulb className={cn("w-4 h-4", explainMode && "fill-primary/30")} />
-                <span className="hidden sm:inline text-xs font-medium">Explain</span>
+                <Lightbulb className={cn("w-3.5 h-3.5", explainMode && "fill-primary/30")} />
+                <span className="hidden sm:inline">Explain</span>
               </Button>
             </TooltipTrigger>
-            <TooltipContent>
-              <p>Show AI reasoning</p>
-            </TooltipContent>
+            <TooltipContent>Show AI reasoning</TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -81,15 +79,13 @@ export const ChatHeader = ({
                 variant="ghost"
                 size="sm"
                 onClick={onOpenAnalytics}
-                className="h-9 px-3 text-muted-foreground hover:text-foreground gap-2 rounded-xl"
+                className="h-8 px-2.5 gap-1.5 text-xs rounded-lg"
               >
-                <BarChart3 className="w-4 h-4" />
-                <span className="hidden sm:inline text-xs font-medium">Analytics</span>
+                <BarChart3 className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Analytics</span>
               </Button>
             </TooltipTrigger>
-            <TooltipContent>
-              <p>View performance metrics</p>
-            </TooltipContent>
+            <TooltipContent>View metrics</TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -98,22 +94,18 @@ export const ChatHeader = ({
                 variant="ghost"
                 size="sm"
                 onClick={handleNewSession}
-                className="h-9 px-3 text-muted-foreground hover:text-foreground gap-2 rounded-xl"
+                className="h-8 px-2.5 gap-1.5 text-xs rounded-lg"
               >
-                <RotateCcw className="w-4 h-4" />
-                <span className="hidden sm:inline text-xs font-medium">New Chat</span>
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">New Chat</span>
               </Button>
             </TooltipTrigger>
-            <TooltipContent>
-              <p>Start fresh conversation</p>
-            </TooltipContent>
+            <TooltipContent>Start fresh</TooltipContent>
           </Tooltip>
 
-          <div className="ml-2 h-6 w-px bg-border/50" />
-
-          <div className="ml-2 px-3 py-1.5 rounded-full bg-success/10 border border-success/20">
-            <span className="text-xs font-medium text-success flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
+          <div className="ml-1 px-2 py-1 rounded-full bg-success/10 border border-success/20">
+            <span className="text-[10px] font-medium text-success flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-success" />
               Online
             </span>
           </div>
