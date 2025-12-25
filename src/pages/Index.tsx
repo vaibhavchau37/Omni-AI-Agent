@@ -338,6 +338,7 @@ const Index = () => {
         speakingMessageId={speakingMessageId}
         currentGoal={currentGoal}
         onSelectDemo={handleSendMessage}
+        onOpenAnalytics={() => setShowAnalytics(true)}
       />
       
       {/* Input Area */}

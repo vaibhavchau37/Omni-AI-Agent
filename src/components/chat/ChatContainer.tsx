@@ -36,6 +36,7 @@ interface ChatContainerProps {
     isAutonomous?: boolean;
   } | null;
   onSelectDemo?: (message: string) => void;
+  onOpenAnalytics?: () => void;
 }
 
 export const ChatContainer = ({ 
@@ -45,7 +46,8 @@ export const ChatContainer = ({
   onSpeak, 
   speakingMessageId,
   currentGoal,
-  onSelectDemo
+  onSelectDemo,
+  onOpenAnalytics
 }: ChatContainerProps) => {
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -59,7 +61,10 @@ export const ChatContainer = ({
         {/* Welcome + Demos (only when empty) */}
         {messages.length === 0 && (
           <>
-            <WelcomeScreen />
+            <WelcomeScreen 
+              onFeatureClick={onSelectDemo} 
+              onOpenAnalytics={onOpenAnalytics}
+            />
             {onSelectDemo && (
               <DemoScenarios onSelectDemo={onSelectDemo} disabled={isTyping} />
             )}
