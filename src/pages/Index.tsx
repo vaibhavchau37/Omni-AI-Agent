@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useNavigate } from "react-router-dom";
 import { ChatHeader } from "@/components/chat/ChatHeader";
 import { ChatContainer } from "@/components/chat/ChatContainer";
 import { ChatInput } from "@/components/chat/ChatInput";
@@ -15,10 +14,8 @@ import { AgentActivity } from "@/components/chat/AgentActivityLog";
 import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 import { useTextToSpeech } from "@/hooks/useTextToSpeech";
 import { useContinuousListening } from "@/hooks/useContinuousListening";
-import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
 import { sendChatMessage, clearSession } from "@/services/chatService";
-import { Loader2 } from "lucide-react";
 
 interface Message {
   id: string;
@@ -64,9 +61,6 @@ const classifyIntent = (message: string): IntentType => {
 };
 
 const Index = () => {
-  const navigate = useNavigate();
-  const { user, isLoading: authLoading, signOut, isAuthenticated } = useAuth();
-  
   const [messages, setMessages] = useState<Message[]>([]);
   const [isTyping, setIsTyping] = useState(false);
   const [isVoiceMode, setIsVoiceMode] = useState(false);
@@ -85,23 +79,6 @@ const Index = () => {
   const { isListening, transcript, toggleListening, resetTranscript, setLanguage, currentLanguage, detectedLanguage } = useSpeechRecognition();
   const { speak, stop, isSpeaking, setPreferredLanguage } = useTextToSpeech();
   const continuousListening = useContinuousListening();
-
-  // Redirect to auth if not authenticated
-  useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
-      navigate("/auth");
-    }
-  }, [authLoading, isAuthenticated, navigate]);
-
-  const handleSignOut = async () => {
-    await signOut();
-    clearSession();
-    navigate("/auth");
-    toast({
-      title: "Signed out",
-      description: "You've been signed out successfully.",
-    });
-  };
 
   // Handle continuous listening wake word detection
   useEffect(() => {
