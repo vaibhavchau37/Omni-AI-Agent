@@ -8,9 +8,12 @@ import { AnalyticsDashboard } from "@/components/chat/AnalyticsDashboard";
 import { DemoScenarios } from "@/components/chat/DemoScenarios";
 import { VoiceLanguageSelector } from "@/components/chat/VoiceLanguageSelector";
 import { VisionAgent } from "@/components/chat/VisionAgent";
+import { ContinuousListeningButton } from "@/components/chat/ContinuousListeningButton";
+import { MultiAgentPanel, AgentMessage, AgentDefinition } from "@/components/chat/MultiAgentPanel";
 import { AgentActivity } from "@/components/chat/AgentActivityLog";
 import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 import { useTextToSpeech } from "@/hooks/useTextToSpeech";
+import { useContinuousListening } from "@/hooks/useContinuousListening";
 import { toast } from "@/hooks/use-toast";
 import { sendChatMessage, clearSession } from "@/services/chatService";
 
@@ -69,10 +72,35 @@ const Index = () => {
   const [showVisionAgent, setShowVisionAgent] = useState(false);
   const [currentGoal, setCurrentGoal] = useState<{ goal: string; steps: string[]; currentStep: number; executedActions?: Array<{step: number, action: string, status: string, result: string}>; isAutonomous?: boolean } | null>(null);
   const [explainMode, setExplainMode] = useState(false);
+  const [activeAgents, setActiveAgents] = useState<AgentDefinition["id"][]>([]);
+  const [agentMessages, setAgentMessages] = useState<AgentMessage[]>([]);
   const conversationHistory = useRef<Array<{ role: "user" | "assistant"; content: string }>>([]);
   
   const { isListening, transcript, toggleListening, resetTranscript, setLanguage, currentLanguage, detectedLanguage } = useSpeechRecognition();
   const { speak, stop, isSpeaking, setPreferredLanguage } = useTextToSpeech();
+  const continuousListening = useContinuousListening();
+
+  // Handle continuous listening wake word detection
+  useEffect(() => {
+    if (continuousListening.isWakeWordDetected && continuousListening.transcript) {
+      // Auto-send when we have a command after wake word
+      const trimmedTranscript = continuousListening.transcript.trim();
+      if (trimmedTranscript.length > 3 && !isTyping) {
+        // Pause listening during execution
+        continuousListening.pauseListening();
+        setIsVoiceMode(true);
+        handleSendMessage(trimmedTranscript);
+        continuousListening.resetTranscript();
+      }
+    }
+  }, [continuousListening.isWakeWordDetected, continuousListening.transcript, isTyping]);
+
+  // Resume continuous listening after response
+  useEffect(() => {
+    if (!isTyping && !isSpeaking && continuousListening.isEnabled) {
+      continuousListening.resumeListening();
+    }
+  }, [isTyping, isSpeaking, continuousListening.isEnabled]);
 
   useEffect(() => {
     if (!isListening && transcript) {
@@ -165,6 +193,8 @@ const Index = () => {
     addMessage("user", content);
     setIsTyping(true);
     setAgentActivities([]);
+    setActiveAgents([]);
+    setAgentMessages([]);
 
     try {
       const response = await sendChatMessage(
@@ -181,6 +211,27 @@ const Index = () => {
       // Simulate agent activities if returned
       if (response.agentActivities) {
         simulateAgentActivity(response.agentActivities);
+        
+        // Update active agents based on activities
+        const agents = response.agentActivities.map(a => a.agent as AgentDefinition["id"]);
+        setActiveAgents([...new Set(agents)]);
+        
+        // Create agent messages for communication log
+        const messages: AgentMessage[] = [];
+        response.agentActivities.forEach((activity, index) => {
+          if (index > 0) {
+            const prevAgent = response.agentActivities[index - 1].agent;
+            messages.push({
+              id: `${Date.now()}_${index}`,
+              from: prevAgent as AgentDefinition["id"],
+              to: activity.agent as AgentDefinition["id"],
+              type: "request",
+              content: activity.action,
+              timestamp: Date.now(),
+            });
+          }
+        });
+        setAgentMessages(messages);
       }
 
       // Handle goal tracking with autonomous execution
@@ -326,6 +377,14 @@ const Index = () => {
               onLanguageChange={handleLanguageChange}
               isListening={isListening}
             />
+            
+            <ContinuousListeningButton
+              isEnabled={continuousListening.isEnabled}
+              isListening={continuousListening.isListening}
+              isWakeWordDetected={continuousListening.isWakeWordDetected}
+              onToggle={() => continuousListening.isEnabled ? continuousListening.disable() : continuousListening.enable()}
+              language={currentLanguage === "hi-IN" ? "hi" : "en"}
+            />
           </div>
           
           <div className="flex items-center gap-2">
@@ -344,7 +403,19 @@ const Index = () => {
         </div>
       </div>
       
-      <ChatContainer 
+      {/* Multi-Agent Panel */}
+      {activeAgents.length > 0 && (
+        <div className="px-4 max-w-4xl mx-auto w-full">
+          <MultiAgentPanel
+            activeAgents={activeAgents}
+            messages={agentMessages}
+            isProcessing={isTyping}
+            language={currentLanguage === "hi-IN" ? "hi" : "en"}
+          />
+        </div>
+      )}
+      
+      <ChatContainer
         messages={messages} 
         isTyping={isTyping}
         agentActivities={agentActivities}

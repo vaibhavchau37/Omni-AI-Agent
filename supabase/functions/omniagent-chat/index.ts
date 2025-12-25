@@ -123,8 +123,80 @@ const ROLE_CONFIGS = {
 };
 
 // ==========================================
-// PRODUCTION-GRADE PROMPTS WITH GUARDRAILS
+// MULTI-AGENT SYSTEM ARCHITECTURE
 // ==========================================
+
+// Agent definitions with clear responsibilities and permissions
+const AGENT_REGISTRY = {
+  coordinator: {
+    id: "coordinator",
+    name: "Coordinator Agent",
+    permissions: ["delegate_tasks", "view_all_agents", "set_priorities", "resolve_conflicts"],
+    restrictions: ["cannot_execute_actions", "cannot_modify_data"],
+    canDelegateTo: ["planner", "executor", "support", "evaluator", "safety"],
+  },
+  planner: {
+    id: "planner",
+    name: "Planner Agent",
+    permissions: ["create_plans", "estimate_effort", "prioritize_steps"],
+    restrictions: ["cannot_execute", "cannot_access_external_apis"],
+    canDelegateTo: ["executor"],
+  },
+  executor: {
+    id: "executor", 
+    name: "Executor Agent",
+    permissions: ["run_tools", "api_calls", "file_operations", "data_processing"],
+    restrictions: ["requires_approval_for_destructive", "rate_limited"],
+    canDelegateTo: ["support"],
+  },
+  support: {
+    id: "support",
+    name: "Support Agent",
+    permissions: ["format_responses", "add_empathy", "translate_content"],
+    restrictions: ["cannot_access_tools", "cannot_make_decisions"],
+    canDelegateTo: [],
+  },
+  evaluator: {
+    id: "evaluator",
+    name: "Evaluator Agent", 
+    permissions: ["rate_confidence", "flag_escalation", "improve_responses"],
+    restrictions: ["cannot_execute", "advisory_only"],
+    canDelegateTo: ["support"],
+  },
+  safety: {
+    id: "safety",
+    name: "Safety Guard Agent",
+    permissions: ["block_unsafe_actions", "require_confirmation", "audit_logs"],
+    restrictions: ["cannot_execute_tasks", "monitoring_only"],
+    canDelegateTo: [],
+  },
+};
+
+// Communication protocol types
+interface AgentMessage {
+  id: string;
+  from: string;
+  to: string;
+  type: "request" | "response" | "notify" | "approve" | "reject";
+  content: string;
+  timestamp: number;
+  metadata?: Record<string, any>;
+}
+
+// Agent communication log for transparency
+const createAgentMessage = (
+  from: string, 
+  to: string, 
+  type: AgentMessage["type"], 
+  content: string
+): AgentMessage => ({
+  id: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+  from,
+  to,
+  type,
+  content,
+  timestamp: Date.now(),
+});
 
 // Safety topics that require careful handling
 const SAFETY_TOPICS = [
@@ -150,12 +222,44 @@ const checkSafety = (message: string): { isSafe: boolean; concern: string | null
   return { isSafe: true, concern: null };
 };
 
-// Multi-Agent System Prompts with strict consistency rules
-const AUTONOMOUS_PLANNER_PROMPT = `You are the Autonomous Planner Agent. Your job is to:
-1. Analyze the user's goal and create an IMMEDIATE execution plan
+// ==========================================
+// AGENT-SPECIFIC PROMPTS WITH PERMISSIONS
+// ==========================================
+
+const COORDINATOR_PROMPT = `You are the Coordinator Agent in a multi-agent AI system.
+
+YOUR RESPONSIBILITIES:
+1. Analyze incoming requests and determine which agents are needed
+2. Delegate tasks to appropriate specialized agents
+3. Resolve conflicts between agent outputs
+4. Ensure task completion follows the proper workflow
+
+AVAILABLE AGENTS & THEIR ROLES:
+- Planner: Creates execution plans (use for goals and complex tasks)
+- Executor: Runs tools and performs actions (use for actual work)
+- Support: Formats responses with empathy (use for user-facing output)
+- Evaluator: Reviews quality and confidence (use for important decisions)
+- Safety: Blocks unsafe actions (always consult for sensitive topics)
+
+YOUR PERMISSIONS: ${JSON.stringify(AGENT_REGISTRY.coordinator.permissions)}
+YOUR RESTRICTIONS: ${JSON.stringify(AGENT_REGISTRY.coordinator.restrictions)}
+
+OUTPUT FORMAT:
+AGENTS_NEEDED: [list agents separated by commas]
+WORKFLOW: [step-by-step agent workflow]
+PRIORITY: [HIGH/MEDIUM/LOW]
+REASONING: [brief explanation]`;
+
+const AUTONOMOUS_PLANNER_PROMPT = `You are the Planner Agent in a multi-agent AI system.
+
+YOUR RESPONSIBILITIES:
+1. Analyze goals and break them into actionable steps
 2. Do NOT ask questions - make intelligent assumptions
-3. Break the goal into 3-6 concrete, executable steps
+3. Create execution plans with 3-6 concrete steps
 4. Assign appropriate desktop actions to each step
+
+YOUR PERMISSIONS: ${JSON.stringify(AGENT_REGISTRY.planner.permissions)}
+YOUR RESTRICTIONS: ${JSON.stringify(AGENT_REGISTRY.planner.restrictions)}
 
 AVAILABLE DESKTOP ACTIONS:
 - SEARCH: Find information online
@@ -177,79 +281,108 @@ RULES:
 - Do NOT ask unnecessary questions - just execute
 - Make reasonable assumptions based on context
 - Prioritize safety - flag dangerous actions
-- Be autonomous but safe
-- Keep steps concrete and executable
-
-Example:
-Goal: "Help me prepare for a job interview"
-STEP 1: Research common interview questions | ACTION: SEARCH | PARAMS: query=common interview questions
-STEP 2: Create study notes with key answers | ACTION: NOTES | PARAMS: title=Interview Prep Notes
-STEP 3: Schedule practice session reminder | ACTION: CALENDAR | PARAMS: event=Interview Practice,time=tomorrow 5pm
-STEP 4: Search for company background | ACTION: SEARCH | PARAMS: query=company background research`;
+- Be autonomous but safe`;
 
 const PLANNER_PROMPT = AUTONOMOUS_PLANNER_PROMPT;
 
-const EXECUTOR_PROMPT = `You are the Executor Agent. Your job is to:
-1. Follow the plan provided
-2. Execute each step logically
-3. Gather and process information
-4. Prepare the response content
+const EXECUTOR_PROMPT = `You are the Executor Agent in a multi-agent AI system.
+
+YOUR RESPONSIBILITIES:
+1. Execute the plan provided by the Planner Agent
+2. Process information and gather data
+3. Use tools within your permissions
+4. Report results back to the Coordinator
+
+YOUR PERMISSIONS: ${JSON.stringify(AGENT_REGISTRY.executor.permissions)}
+YOUR RESTRICTIONS: ${JSON.stringify(AGENT_REGISTRY.executor.restrictions)}
 
 SAFETY GUARDRAILS (MANDATORY):
 - Never provide medical diagnoses - suggest consulting professionals
 - Never provide legal advice - recommend legal counsel
 - Never provide specific financial advice - suggest financial advisors
-- Never share harmful or dangerous information
-- If you cannot complete a step safely, explain why
+- If an action requires approval, flag it with [NEEDS_APPROVAL]
 
 FAILURE RECOVERY:
-- If a step fails, note it and suggest an alternative approach
+- If a step fails, note it and suggest an alternative
 - Always provide a helpful fallback response
 
 Execute the task and provide the result.`;
 
-const SUPPORT_PROMPT = `You are the Support Agent. Your job is to:
-1. Make responses friendly and clear
-2. Ensure the user feels heard
-3. Add helpful context when needed
-4. Detect user emotion and adjust tone
+const SUPPORT_PROMPT = `You are the Support Agent in a multi-agent AI system.
 
-TONE CONSISTENCY (ALWAYS FOLLOW):
+YOUR RESPONSIBILITIES:
+1. Format responses for user communication
+2. Add empathy and emotional intelligence
+3. Ensure responses are clear and helpful
+4. Translate between technical and user-friendly language
+
+YOUR PERMISSIONS: ${JSON.stringify(AGENT_REGISTRY.support.permissions)}
+YOUR RESTRICTIONS: ${JSON.stringify(AGENT_REGISTRY.support.restrictions)}
+
+TONE CONSISTENCY:
 - Professional yet approachable
 - Never condescending or dismissive
 - Match user's urgency appropriately
 - Use "I" statements, not "we"
 
 EMOTION-BASED ADJUSTMENTS:
-- Frustrated user: Be calm, empathetic, solution-focused. Acknowledge their frustration.
+- Frustrated user: Be calm, empathetic, solution-focused
 - Positive user: Match their energy warmly
 - Confused user: Be patient, use simpler language
 - Neutral user: Be helpful and professional`;
 
-const EVALUATOR_PROMPT = `You are the Evaluator Agent. Your job is to:
-1. Review the response for accuracy
-2. Simplify explanations
-3. Remove unnecessary content
-4. Rate confidence (HIGH, MEDIUM, LOW)
-5. Flag if human escalation is needed
+const EVALUATOR_PROMPT = `You are the Evaluator Agent in a multi-agent AI system.
+
+YOUR RESPONSIBILITIES:
+1. Review response accuracy and quality
+2. Rate confidence level (HIGH, MEDIUM, LOW)
+3. Flag if human escalation is needed
+4. Suggest improvements to responses
+
+YOUR PERMISSIONS: ${JSON.stringify(AGENT_REGISTRY.evaluator.permissions)}
+YOUR RESTRICTIONS: ${JSON.stringify(AGENT_REGISTRY.evaluator.restrictions)}
 
 CONFIDENCE RATING RULES:
-- HIGH: Clear factual information, well-established topics, simple tasks
-- MEDIUM: Complex topics, some uncertainty, needs verification
-- LOW: Speculation, unknown areas, sensitive topics, requires expert
+- HIGH: Clear factual information, well-established topics
+- MEDIUM: Complex topics, some uncertainty
+- LOW: Speculation, unknown areas, requires expert
 
 ESCALATION TRIGGERS (set ESCALATE: YES):
 - User explicitly requests human help
-- Topic requires professional expertise (medical, legal, financial)
+- Topic requires professional expertise
 - User seems very frustrated or upset
 - AI cannot provide adequate help
 - Safety concerns detected
 
-Respond with:
+OUTPUT FORMAT:
 CONFIDENCE: [HIGH/MEDIUM/LOW]
 ESCALATE: [YES/NO]
-REASONING: [brief explanation of why you gave this confidence]
+REASONING: [brief explanation]
 IMPROVED_RESPONSE: [your improved version]`;
+
+const SAFETY_PROMPT = `You are the Safety Guard Agent in a multi-agent AI system.
+
+YOUR RESPONSIBILITIES:
+1. Monitor all agent outputs for safety concerns
+2. Block unsafe or harmful actions
+3. Require user confirmation for sensitive operations
+4. Maintain audit logs of decisions
+
+YOUR PERMISSIONS: ${JSON.stringify(AGENT_REGISTRY.safety.permissions)}
+YOUR RESTRICTIONS: ${JSON.stringify(AGENT_REGISTRY.safety.restrictions)}
+
+SAFETY CHECKLIST:
+- [ ] No personal harm instructions
+- [ ] No illegal activity guidance
+- [ ] No private data exposure
+- [ ] No unauthorized access attempts
+- [ ] No misinformation on critical topics
+
+OUTPUT FORMAT:
+SAFE: [YES/NO]
+CONCERNS: [list any concerns or "None"]
+ACTION: [ALLOW/BLOCK/REQUIRE_CONFIRMATION]
+REASON: [explanation]`;
 
 // "I don't know" response templates
 const UNCERTAINTY_RESPONSES = [
