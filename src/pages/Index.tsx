@@ -2,13 +2,11 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { ChatHeader } from "@/components/chat/ChatHeader";
 import { ChatContainer } from "@/components/chat/ChatContainer";
 import { ChatInput } from "@/components/chat/ChatInput";
-import { RoleSelector, AgentRole } from "@/components/chat/RoleSelector";
-import { GoalTracker } from "@/components/chat/GoalTracker";
+import { ControlBar } from "@/components/chat/ControlBar";
+import { AgentRole } from "@/components/chat/RoleSelector";
 import { AnalyticsDashboard } from "@/components/chat/AnalyticsDashboard";
 import { DemoScenarios } from "@/components/chat/DemoScenarios";
-import { VoiceLanguageSelector } from "@/components/chat/VoiceLanguageSelector";
 import { VisionAgent } from "@/components/chat/VisionAgent";
-import { ContinuousListeningButton } from "@/components/chat/ContinuousListeningButton";
 import { MultiAgentPanel, AgentMessage, AgentDefinition } from "@/components/chat/MultiAgentPanel";
 import { AgentActivity } from "@/components/chat/AgentActivityLog";
 import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
@@ -16,6 +14,8 @@ import { useTextToSpeech } from "@/hooks/useTextToSpeech";
 import { useContinuousListening } from "@/hooks/useContinuousListening";
 import { toast } from "@/hooks/use-toast";
 import { sendChatMessage, clearSession } from "@/services/chatService";
+import { Eye, EyeOff } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface Message {
   id: string;
@@ -83,10 +83,8 @@ const Index = () => {
   // Handle continuous listening wake word detection
   useEffect(() => {
     if (continuousListening.isWakeWordDetected && continuousListening.transcript) {
-      // Auto-send when we have a command after wake word
       const trimmedTranscript = continuousListening.transcript.trim();
       if (trimmedTranscript.length > 3 && !isTyping) {
-        // Pause listening during execution
         continuousListening.pauseListening();
         setIsVoiceMode(true);
         handleSendMessage(trimmedTranscript);
@@ -181,11 +179,10 @@ const Index = () => {
     stop();
     setSpeakingMessageId(null);
     
-    if (isSimulation) {
-      toast({ title: "Sandbox cleared", description: "Test session reset (no data saved)" });
-    } else {
-      toast({ title: "Session cleared", description: "Starting fresh conversation" });
-    }
+    toast({ 
+      title: isSimulation ? "Sandbox cleared" : "Session cleared", 
+      description: isSimulation ? "Test session reset" : "Starting fresh" 
+    });
   }, [stop, isSimulation]);
 
   const handleSendMessage = async (content: string) => {
@@ -208,15 +205,11 @@ const Index = () => {
         }
       );
 
-      // Simulate agent activities if returned
       if (response.agentActivities) {
         simulateAgentActivity(response.agentActivities);
-        
-        // Update active agents based on activities
         const agents = response.agentActivities.map(a => a.agent as AgentDefinition["id"]);
         setActiveAgents([...new Set(agents)]);
         
-        // Create agent messages for communication log
         const messages: AgentMessage[] = [];
         response.agentActivities.forEach((activity, index) => {
           if (index > 0) {
@@ -234,7 +227,6 @@ const Index = () => {
         setAgentMessages(messages);
       }
 
-      // Handle goal tracking with autonomous execution
       if (response.isGoal && response.goalSteps && response.goalSteps.length > 0) {
         setCurrentGoal({
           goal: content,
@@ -245,20 +237,17 @@ const Index = () => {
         });
       }
 
-      // Show retry notification if retries occurred
       if (response.retryCount && response.retryCount > 0) {
         toast({
-          title: "Retry Recovery",
-          description: `Successfully recovered after ${response.retryCount} retry attempt(s)`,
+          title: "Recovery successful",
+          description: `Recovered after ${response.retryCount} retry`,
         });
       }
 
-      // Simulation mode indicator
       if (response.isSimulation) {
         toast({
-          title: "🧪 Sandbox Mode",
+          title: "Sandbox Mode",
           description: "This interaction was not saved",
-          variant: "default",
         });
       }
 
@@ -299,7 +288,7 @@ const Index = () => {
       }
     } catch (err) {
       console.error("Unexpected error:", err);
-      const errorMsg = "I apologize, but something unexpected happened. Please try again.";
+      const errorMsg = "Something unexpected happened. Please try again.";
       const messageId = addMessage("assistant", errorMsg, { 
         intent: "Support / Help",
         confidence: "low",
@@ -319,30 +308,23 @@ const Index = () => {
   const handleVoiceToggle = () => {
     if (isListening) {
       toggleListening();
-      const isHindi = currentLanguage === "hi-IN" || detectedLanguage === "hi";
       toast({ 
-        title: isHindi ? "आपकी आवाज़ प्रोसेस हो रही है" : "Processing your voice", 
-        description: isHindi ? "जल्द ही जवाब आएगा..." : "Responding shortly..." 
+        title: currentLanguage === "hi-IN" ? "प्रोसेसिंग..." : "Processing...", 
+        description: currentLanguage === "hi-IN" ? "जवाब आ रहा है" : "Responding shortly" 
       });
     } else {
       stop();
       setSpeakingMessageId(null);
       toggleListening();
-      const isHindi = currentLanguage === "hi-IN";
       toast({ 
-        title: isHindi ? "🎤 सुन रहा हूं..." : "🎤 Listening...", 
-        description: currentLanguage === "auto" 
-          ? "हिंदी या English में बोलें / Speak naturally" 
-          : isHindi 
-            ? "हिंदी में बोलें" 
-            : "Speak naturally." 
+        title: "🎤 Listening", 
+        description: currentLanguage === "auto" ? "Speak naturally" : undefined
       });
     }
   };
 
   const handleLanguageChange = (lang: "en-US" | "hi-IN" | "auto") => {
     setLanguage(lang);
-    // Also update TTS language preference
     if (lang === "hi-IN") {
       setPreferredLanguage("hi");
     } else if (lang === "en-US") {
@@ -354,6 +336,7 @@ const Index = () => {
 
   return (
     <div className="flex flex-col h-screen bg-background">
+      {/* Header */}
       <ChatHeader 
         onClearSession={handleClearSession} 
         onOpenAnalytics={() => setShowAnalytics(true)}
@@ -361,51 +344,23 @@ const Index = () => {
         onExplainModeToggle={() => setExplainMode(!explainMode)}
       />
       
-      {/* Role Selector Bar */}
-      <div className="border-b border-border/50 px-4 py-2 bg-secondary/20">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <RoleSelector 
-              currentRole={agentRole}
-              onRoleChange={setAgentRole}
-              isSimulation={isSimulation}
-              onSimulationToggle={() => setIsSimulation(!isSimulation)}
-            />
-            
-            <VoiceLanguageSelector
-              currentLanguage={currentLanguage}
-              onLanguageChange={handleLanguageChange}
-              isListening={isListening}
-            />
-            
-            <ContinuousListeningButton
-              isEnabled={continuousListening.isEnabled}
-              isListening={continuousListening.isListening}
-              isWakeWordDetected={continuousListening.isWakeWordDetected}
-              onToggle={() => continuousListening.isEnabled ? continuousListening.disable() : continuousListening.enable()}
-              language={currentLanguage === "hi-IN" ? "hi" : "en"}
-            />
-          </div>
-          
-          <div className="flex items-center gap-2">
-            {detectedLanguage && isVoiceMode && (
-              <span className="text-xs text-primary bg-primary/10 px-2 py-1 rounded-md">
-                {detectedLanguage === "hi" ? "🇮🇳 हिंदी" : "🇺🇸 English"} detected
-              </span>
-            )}
-            
-            {isSimulation && (
-              <span className="text-xs text-yellow-400 bg-yellow-500/10 px-2 py-1 rounded-md">
-                Sandbox Mode
-              </span>
-            )}
-          </div>
-        </div>
-      </div>
+      {/* Control Bar */}
+      <ControlBar
+        agentRole={agentRole}
+        onRoleChange={setAgentRole}
+        isSimulation={isSimulation}
+        onSimulationToggle={() => setIsSimulation(!isSimulation)}
+        currentLanguage={currentLanguage}
+        onLanguageChange={handleLanguageChange}
+        isListening={isListening}
+        continuousListening={continuousListening}
+        detectedLanguage={detectedLanguage}
+        isVoiceMode={isVoiceMode}
+      />
       
       {/* Multi-Agent Panel */}
       {activeAgents.length > 0 && (
-        <div className="px-4 max-w-4xl mx-auto w-full">
+        <div className="px-4 max-w-5xl mx-auto w-full">
           <MultiAgentPanel
             activeAgents={activeAgents}
             messages={agentMessages}
@@ -415,6 +370,7 @@ const Index = () => {
         </div>
       )}
       
+      {/* Main Chat Area */}
       <ChatContainer
         messages={messages} 
         isTyping={isTyping}
@@ -424,53 +380,50 @@ const Index = () => {
         currentGoal={currentGoal}
       />
       
-      <div className="border-t border-border/50 p-4 pb-6">
+      {/* Input Section */}
+      <div className="border-t border-border/30 p-4 pb-6 bg-gradient-to-t from-background via-background to-transparent">
         <div className="max-w-4xl mx-auto space-y-4">
-          {/* Vision Agent Panel */}
+          {/* Vision Agent */}
           {showVisionAgent && (
             <VisionAgent 
               language={currentLanguage === "hi-IN" ? "hi" : "en"}
-              onActionSuggested={(action) => {
-                console.log("Vision action suggested:", action);
-              }}
+              onActionSuggested={(action) => console.log("Vision action:", action)}
             />
           )}
           
-          {/* Demo Scenarios - Show only when no messages */}
+          {/* Demo Scenarios */}
           {messages.length === 0 && !showVisionAgent && (
-            <DemoScenarios 
-              onSelectDemo={handleSendMessage} 
-              disabled={isTyping} 
-            />
+            <DemoScenarios onSelectDemo={handleSendMessage} disabled={isTyping} />
           )}
           
-          <div className="flex gap-2">
-            <ChatInput
-              onSend={handleSendMessage}
-              isListening={isListening}
-              onVoiceToggle={handleVoiceToggle}
-              disabled={isTyping}
-            />
-          </div>
+          {/* Chat Input */}
+          <ChatInput
+            onSend={handleSendMessage}
+            isListening={isListening}
+            onVoiceToggle={handleVoiceToggle}
+            disabled={isTyping}
+          />
           
-          {/* Vision Agent Toggle */}
+          {/* Vision Toggle */}
           <div className="flex justify-center">
-            <button
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => setShowVisionAgent(!showVisionAgent)}
-              className={`text-xs px-3 py-1.5 rounded-full transition-colors ${
+              className={`text-xs rounded-full gap-2 ${
                 showVisionAgent 
-                  ? "bg-primary/20 text-primary border border-primary/30" 
-                  : "text-muted-foreground hover:text-primary hover:bg-primary/10"
+                  ? "text-primary bg-primary/10" 
+                  : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              👁️ {showVisionAgent 
-                ? (currentLanguage === "hi-IN" ? "विज़न एजेंट छुपाएं" : "Hide Vision Agent")
-                : (currentLanguage === "hi-IN" ? "विज़न एजेंट दिखाएं" : "Show Vision Agent")}
-            </button>
+              {showVisionAgent ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+              {showVisionAgent ? "Hide Vision" : "Vision Agent"}
+            </Button>
           </div>
         </div>
       </div>
       
+      {/* Analytics Modal */}
       <AnalyticsDashboard 
         isOpen={showAnalytics} 
         onClose={() => setShowAnalytics(false)} 
