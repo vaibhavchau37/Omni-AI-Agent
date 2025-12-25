@@ -64,7 +64,7 @@ const Index = () => {
   const [agentRole, setAgentRole] = useState<AgentRole>("default");
   const [isSimulation, setIsSimulation] = useState(false);
   const [showAnalytics, setShowAnalytics] = useState(false);
-  const [currentGoal, setCurrentGoal] = useState<{ goal: string; steps: string[]; currentStep: number } | null>(null);
+  const [currentGoal, setCurrentGoal] = useState<{ goal: string; steps: string[]; currentStep: number; executedActions?: Array<{step: number, action: string, status: string, result: string}>; isAutonomous?: boolean } | null>(null);
   const [explainMode, setExplainMode] = useState(false);
   const conversationHistory = useRef<Array<{ role: "user" | "assistant"; content: string }>>([]);
   
@@ -180,12 +180,14 @@ const Index = () => {
         simulateAgentActivity(response.agentActivities);
       }
 
-      // Handle goal tracking
+      // Handle goal tracking with autonomous execution
       if (response.isGoal && response.goalSteps && response.goalSteps.length > 0) {
         setCurrentGoal({
           goal: content,
           steps: response.goalSteps,
           currentStep: 0,
+          executedActions: response.executedActions,
+          isAutonomous: response.isAutonomous,
         });
       }
 

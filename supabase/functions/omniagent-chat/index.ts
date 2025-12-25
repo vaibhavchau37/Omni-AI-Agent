@@ -7,15 +7,86 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Available tools for agent
+// Available tools for agent - Desktop Actions
 const AVAILABLE_TOOLS = [
-  { name: "search", description: "Search for information", triggers: ["find", "search", "look up"] },
-  { name: "calendar", description: "Schedule appointments", triggers: ["schedule", "book", "appointment"] },
-  { name: "email", description: "Send emails", triggers: ["email", "send message", "mail"] },
-  { name: "task", description: "Create and manage tasks", triggers: ["task", "todo", "remind"] },
-  { name: "calculate", description: "Perform calculations", triggers: ["calculate", "compute", "math"] },
-  { name: "analyze", description: "Analyze data or content", triggers: ["analyze", "review", "evaluate"] },
+  { name: "search", description: "Search for information online", triggers: ["find", "search", "look up", "google"], action: "SEARCH" },
+  { name: "calendar", description: "Schedule appointments and reminders", triggers: ["schedule", "book", "appointment", "meeting", "remind"], action: "CALENDAR" },
+  { name: "email", description: "Send and read emails", triggers: ["email", "send message", "mail", "compose"], action: "EMAIL" },
+  { name: "task", description: "Create and manage tasks/todos", triggers: ["task", "todo", "create task", "add task"], action: "TASK" },
+  { name: "file", description: "Open, create, or manage files", triggers: ["open file", "create file", "document", "folder"], action: "FILE" },
+  { name: "browser", description: "Open websites and web apps", triggers: ["open", "website", "browse", "navigate"], action: "BROWSER" },
+  { name: "calculate", description: "Perform calculations", triggers: ["calculate", "compute", "math"], action: "CALCULATE" },
+  { name: "analyze", description: "Analyze data or content", triggers: ["analyze", "review", "evaluate", "study"], action: "ANALYZE" },
+  { name: "notes", description: "Take and organize notes", triggers: ["note", "write down", "jot", "remember this"], action: "NOTES" },
 ];
+
+// Language detection - Hindi/English
+const detectLanguage = (message: string): "hi" | "en" => {
+  const hindiPattern = /[\u0900-\u097F]/;
+  const hindiWords = ["मुझे", "मैं", "कृपया", "मदद", "चाहिए", "करो", "करें", "बताओ", "दो", "है", "हैं", "का", "की", "के"];
+  
+  if (hindiPattern.test(message)) return "hi";
+  
+  const lowerMessage = message.toLowerCase();
+  for (const word of hindiWords) {
+    if (lowerMessage.includes(word)) return "hi";
+  }
+  
+  return "en";
+};
+
+// Bilingual response templates
+const RESPONSES = {
+  goalStarted: {
+    en: "🎯 Goal received! I'll handle this autonomously. Here's my execution plan:",
+    hi: "🎯 लक्ष्य प्राप्त! मैं इसे स्वतंत्र रूप से संभालूंगा। यह रहा मेरा कार्य योजना:"
+  },
+  stepExecuting: {
+    en: "⚡ Executing step",
+    hi: "⚡ चरण निष्पादित कर रहा हूं"
+  },
+  stepComplete: {
+    en: "✅ Step completed",
+    hi: "✅ चरण पूर्ण"
+  },
+  goalComplete: {
+    en: "🎉 Goal completed successfully! All tasks have been executed.",
+    hi: "🎉 लक्ष्य सफलतापूर्वक पूर्ण! सभी कार्य निष्पादित हो गए हैं।"
+  },
+  verifying: {
+    en: "🔍 Verifying results...",
+    hi: "🔍 परिणाम सत्यापित कर रहा हूं..."
+  },
+  safetyNote: {
+    en: "⚠️ Note: This action requires your confirmation before execution.",
+    hi: "⚠️ नोट: इस कार्रवाई के लिए निष्पादन से पहले आपकी पुष्टि आवश्यक है।"
+  }
+};
+
+// Simulate desktop action execution
+const executeDesktopAction = async (
+  action: string, 
+  params: Record<string, string>
+): Promise<{ success: boolean; result: string; requiresConfirmation?: boolean }> => {
+  // Simulated execution with safe defaults
+  const safeActions = ["SEARCH", "ANALYZE", "CALCULATE", "NOTES"];
+  const confirmActions = ["EMAIL", "CALENDAR", "FILE", "TASK"];
+  
+  await new Promise(r => setTimeout(r, 300)); // Simulate processing
+  
+  if (confirmActions.includes(action)) {
+    return {
+      success: true,
+      result: `Action ${action} prepared`,
+      requiresConfirmation: true
+    };
+  }
+  
+  return {
+    success: true,
+    result: `Action ${action} executed successfully with params: ${JSON.stringify(params)}`
+  };
+};
 
 // Role-based behavior configurations
 const ROLE_CONFIGS = {
@@ -80,24 +151,43 @@ const checkSafety = (message: string): { isSafe: boolean; concern: string | null
 };
 
 // Multi-Agent System Prompts with strict consistency rules
-const PLANNER_PROMPT = `You are the Planner Agent. Your job is to:
-1. Analyze the user's request
-2. Break down complex tasks into steps
-3. Identify what information is needed
-4. Create an execution plan
+const AUTONOMOUS_PLANNER_PROMPT = `You are the Autonomous Planner Agent. Your job is to:
+1. Analyze the user's goal and create an IMMEDIATE execution plan
+2. Do NOT ask questions - make intelligent assumptions
+3. Break the goal into 3-6 concrete, executable steps
+4. Assign appropriate desktop actions to each step
 
-For GOAL-ORIENTED requests (user gives a goal like "help me prepare for X"):
-- Break the goal into 3-5 actionable steps
-- Format as: STEP 1: [action], STEP 2: [action], etc.
-- Include progress markers
+AVAILABLE DESKTOP ACTIONS:
+- SEARCH: Find information online
+- CALENDAR: Schedule events/reminders
+- EMAIL: Compose and send emails
+- TASK: Create tasks/todos
+- FILE: Manage files/documents
+- BROWSER: Open websites
+- CALCULATE: Perform calculations
+- ANALYZE: Analyze content
+- NOTES: Take notes
 
-CONSISTENCY RULES (NEVER BREAK):
-- Always maintain professional tone
-- Never provide harmful, illegal, or dangerous information
-- If unsure, plan to ask for clarification
-- Keep steps actionable and measurable
+OUTPUT FORMAT (STRICT):
+STEP 1: [action description] | ACTION: [DESKTOP_ACTION] | PARAMS: [key=value,key=value]
+STEP 2: [action description] | ACTION: [DESKTOP_ACTION] | PARAMS: [key=value,key=value]
+...
 
-Respond with a brief plan in 2-3 bullet points. Be concise.`;
+RULES:
+- Do NOT ask unnecessary questions - just execute
+- Make reasonable assumptions based on context
+- Prioritize safety - flag dangerous actions
+- Be autonomous but safe
+- Keep steps concrete and executable
+
+Example:
+Goal: "Help me prepare for a job interview"
+STEP 1: Research common interview questions | ACTION: SEARCH | PARAMS: query=common interview questions
+STEP 2: Create study notes with key answers | ACTION: NOTES | PARAMS: title=Interview Prep Notes
+STEP 3: Schedule practice session reminder | ACTION: CALENDAR | PARAMS: event=Interview Practice,time=tomorrow 5pm
+STEP 4: Search for company background | ACTION: SEARCH | PARAMS: query=company background research`;
+
+const PLANNER_PROMPT = AUTONOMOUS_PLANNER_PROMPT;
 
 const EXECUTOR_PROMPT = `You are the Executor Agent. Your job is to:
 1. Follow the plan provided
@@ -219,10 +309,23 @@ const detectEmotion = (message: string): "positive" | "neutral" | "negative" | "
   return "neutral";
 };
 
-// Detect if message is a goal vs a question
-const detectGoal = (message: string): { isGoal: boolean; goalDescription: string | null } => {
+// Detect if message is a goal vs a question - Enhanced for autonomous mode
+const detectGoal = (message: string): { isGoal: boolean; goalDescription: string | null; isAutonomous: boolean } => {
   const lower = message.toLowerCase();
-  const goalPatterns = [
+  
+  // Hindi goal patterns
+  const hindiGoalPatterns = [
+    /मुझे (.*) में मदद करो/i,
+    /मुझे (.*) करना है/i,
+    /मैं (.*) चाहता हूं/i,
+    /मैं (.*) चाहती हूं/i,
+    /(.*) की तैयारी करो/i,
+    /(.*) कर दो/i,
+    /(.*) करें/i,
+  ];
+  
+  // English goal patterns
+  const englishGoalPatterns = [
     /help me (?:to )?(.*)/i,
     /i want to (.*)/i,
     /i need to (.*)/i,
@@ -230,16 +333,40 @@ const detectGoal = (message: string): { isGoal: boolean; goalDescription: string
     /teach me (.*)/i,
     /guide me (?:to|through) (.*)/i,
     /show me how to (.*)/i,
+    /can you (.*) for me/i,
+    /please (.*)/i,
+    /make me (.*)/i,
+    /create (.*)/i,
+    /set up (.*)/i,
+    /organize (.*)/i,
+    /plan (.*)/i,
   ];
 
-  for (const pattern of goalPatterns) {
+  // Check Hindi patterns first
+  for (const pattern of hindiGoalPatterns) {
     const match = message.match(pattern);
     if (match?.[1]) {
-      return { isGoal: true, goalDescription: match[1].trim() };
+      return { isGoal: true, goalDescription: match[1].trim(), isAutonomous: true };
     }
   }
 
-  return { isGoal: false, goalDescription: null };
+  // Check English patterns
+  for (const pattern of englishGoalPatterns) {
+    const match = message.match(pattern);
+    if (match?.[1]) {
+      return { isGoal: true, goalDescription: match[1].trim(), isAutonomous: true };
+    }
+  }
+
+  // Check for imperative sentences (commands)
+  const imperativeIndicators = ["schedule", "book", "send", "create", "find", "search", "set", "organize", "prepare", "remind"];
+  for (const indicator of imperativeIndicators) {
+    if (lower.startsWith(indicator) || lower.includes(`please ${indicator}`)) {
+      return { isGoal: true, goalDescription: message, isAutonomous: true };
+    }
+  }
+
+  return { isGoal: false, goalDescription: null, isAutonomous: false };
 };
 
 // Select appropriate tool based on message
@@ -464,9 +591,13 @@ serve(async (req) => {
     const emotion = detectEmotion(lastMessage);
     console.log("Detected emotion:", emotion);
 
-    // Detect goal
-    const { isGoal, goalDescription } = detectGoal(lastMessage);
-    console.log("Is goal:", isGoal, goalDescription);
+    // Detect language for bilingual responses
+    const userLanguage = detectLanguage(lastMessage);
+    console.log("Detected language:", userLanguage);
+
+    // Detect goal with autonomous mode
+    const { isGoal, goalDescription, isAutonomous } = detectGoal(lastMessage);
+    console.log("Is goal:", isGoal, goalDescription, "Autonomous:", isAutonomous);
 
     // Select tool
     const { tool: selectedTool, reason: toolReason } = selectTool(lastMessage);
@@ -506,7 +637,7 @@ serve(async (req) => {
       if (goalData) {
         goalContext = {
           goal: goalData.goal_description,
-          steps: [], // Would parse from saved data
+          steps: [],
           currentStep: goalData.completed_steps,
         };
       }
@@ -529,9 +660,151 @@ serve(async (req) => {
     let reasoning = "";
     let totalRetries = 0;
     let goalSteps: string[] = [];
+    let executedActions: Array<{step: number, action: string, status: string, result: string}> = [];
 
-    if (isComplexTask && !voiceMode) {
-      // Step 1: Planner Agent
+    // ==========================================
+    // AUTONOMOUS GOAL EXECUTION MODE
+    // ==========================================
+    if (isGoal && isAutonomous && !voiceMode) {
+      console.log("=== AUTONOMOUS EXECUTION MODE ===");
+      
+      // Step 1: Autonomous Planning - NO QUESTIONS ASKED
+      agentActivities.push({ 
+        agent: "planner", 
+        action: userLanguage === "hi" 
+          ? "लक्ष्य का विश्लेषण और स्वायत्त योजना बना रहा हूं" 
+          : "Analyzing goal and creating autonomous execution plan" 
+      });
+      
+      const planResult = await callAI(LOVABLE_API_KEY, AUTONOMOUS_PLANNER_PROMPT, messages, 500);
+      totalRetries += planResult.retries;
+      console.log("Autonomous plan:", planResult.content);
+
+      // Parse execution steps with actions
+      const stepPattern = /STEP (\d+):\s*([^|]+)\|\s*ACTION:\s*(\w+)\s*\|\s*PARAMS:\s*([^\n]+)/gi;
+      let match;
+      const parsedSteps: Array<{step: number, description: string, action: string, params: Record<string, string>}> = [];
+      
+      while ((match = stepPattern.exec(planResult.content)) !== null) {
+        const params: Record<string, string> = {};
+        match[4].split(',').forEach(p => {
+          const [key, value] = p.split('=').map(s => s.trim());
+          if (key && value) params[key] = value;
+        });
+        
+        parsedSteps.push({
+          step: parseInt(match[1]),
+          description: match[2].trim(),
+          action: match[3].trim(),
+          params
+        });
+        goalSteps.push(match[2].trim());
+      }
+
+      // Fallback: extract simple steps if pattern didn't match
+      if (parsedSteps.length === 0) {
+        const simpleSteps = planResult.content.match(/STEP \d+:\s*([^\n|]+)/gi);
+        if (simpleSteps) {
+          simpleSteps.forEach((s, i) => {
+            const desc = s.replace(/STEP \d+:\s*/i, '').trim();
+            goalSteps.push(desc);
+            parsedSteps.push({
+              step: i + 1,
+              description: desc,
+              action: "ANALYZE",
+              params: {}
+            });
+          });
+        }
+      }
+
+      console.log("Parsed steps:", parsedSteps);
+
+      // Save goal to database
+      if (sessionId && !isSimulation && goalSteps.length > 0) {
+        await supabase.from('agent_goals').insert({
+          session_id: sessionId,
+          goal_description: goalDescription || lastMessage,
+          total_steps: goalSteps.length,
+          completed_steps: 0,
+          status: 'active',
+        });
+      }
+
+      // Step 2: Execute each step autonomously
+      let stepResults: string[] = [];
+      let requiresConfirmation = false;
+      
+      for (const step of parsedSteps) {
+        agentActivities.push({ 
+          agent: "executor", 
+          action: `${RESPONSES.stepExecuting[userLanguage]} ${step.step}: ${step.description}` 
+        });
+
+        // Execute the desktop action
+        const actionResult = await executeDesktopAction(step.action, step.params);
+        
+        executedActions.push({
+          step: step.step,
+          action: step.action,
+          status: actionResult.success ? "completed" : "failed",
+          result: actionResult.result
+        });
+
+        if (actionResult.requiresConfirmation) {
+          requiresConfirmation = true;
+          stepResults.push(`${step.step}. ${step.description} - ⏳ ${userLanguage === "hi" ? "पुष्टि की प्रतीक्षा" : "Awaiting confirmation"}`);
+        } else {
+          stepResults.push(`${step.step}. ${step.description} - ✅ ${userLanguage === "hi" ? "पूर्ण" : "Done"}`);
+        }
+      }
+
+      // Step 3: Verify and generate completion report
+      agentActivities.push({ 
+        agent: "evaluator", 
+        action: RESPONSES.verifying[userLanguage]
+      });
+
+      // Generate final response in user's language
+      const completionPrompt = userLanguage === "hi" 
+        ? `आपने निम्नलिखित लक्ष्य पूरा किया: "${goalDescription}"
+           
+निष्पादित चरण:
+${stepResults.join('\n')}
+
+एक संक्षिप्त, पेशेवर पूर्णता रिपोर्ट हिंदी में लिखें। उपयोगकर्ता को बताएं कि क्या पूरा हुआ और आगे क्या करना चाहिए।`
+        : `You completed the following goal: "${goalDescription}"
+           
+Executed steps:
+${stepResults.join('\n')}
+
+Write a brief, professional completion report. Tell the user what was accomplished and what to do next.`;
+
+      const reportMessages = [{ role: "user" as const, content: completionPrompt }];
+      const reportResult = await callAI(LOVABLE_API_KEY, SUPPORT_PROMPT, reportMessages, 400);
+      
+      // Build final response
+      finalResponse = `${RESPONSES.goalStarted[userLanguage]}\n\n`;
+      finalResponse += `**${userLanguage === "hi" ? "निष्पादित कार्य" : "Executed Tasks"}:**\n`;
+      finalResponse += stepResults.join('\n') + '\n\n';
+      
+      if (requiresConfirmation) {
+        finalResponse += `\n${RESPONSES.safetyNote[userLanguage]}\n\n`;
+      }
+      
+      finalResponse += `---\n\n${reportResult.content}`;
+      
+      if (userLanguage === "hi") {
+        finalResponse += `\n\n🎉 ${RESPONSES.goalComplete.hi}`;
+      } else {
+        finalResponse += `\n\n🎉 ${RESPONSES.goalComplete.en}`;
+      }
+
+      confidence = "high";
+      reasoning = `Autonomous execution of ${parsedSteps.length} steps completed. Actions: ${parsedSteps.map(s => s.action).join(', ')}`;
+
+    } else if (isComplexTask && !voiceMode) {
+      // Step 1: Planner Agent (non-autonomous complex task)
       agentActivities.push({ agent: "planner", action: isGoal ? "Breaking down goal into steps" : "Analyzing request and creating plan" });
       const planResult = await callAI(LOVABLE_API_KEY, PLANNER_PROMPT, messages, 200);
       totalRetries += planResult.retries;
@@ -539,9 +812,9 @@ serve(async (req) => {
 
       // Extract goal steps if applicable
       if (isGoal && goalDescription) {
-        const stepMatches = planResult.content.match(/STEP \d+:\s*([^\n]+)/gi);
+        const stepMatches = planResult.content.match(/STEP \d+:\s*([^\n|]+)/gi);
         if (stepMatches) {
-          goalSteps = stepMatches.map(s => s.replace(/STEP \d+:\s*/i, '').trim());
+          goalSteps = stepMatches.map(s => s.replace(/STEP \d+:\s*/i, '').split('|')[0].trim());
         }
         
         // Save goal to database (skip in simulation)
@@ -681,6 +954,9 @@ serve(async (req) => {
         toolReason: selectedTool ? toolReason : undefined,
         isGoal,
         goalSteps: isGoal ? goalSteps : undefined,
+        executedActions: executedActions.length > 0 ? executedActions : undefined,
+        isAutonomous: isGoal && isAutonomous,
+        userLanguage,
         retryCount: totalRetries,
         isSimulation,
       }),

@@ -25,7 +25,13 @@ interface ChatContainerProps {
   agentActivities: AgentActivity[];
   onSpeak?: (content: string) => void;
   speakingMessageId?: string | null;
-  currentGoal?: { goal: string; steps: string[]; currentStep: number } | null;
+  currentGoal?: { 
+    goal: string; 
+    steps: string[]; 
+    currentStep: number;
+    executedActions?: Array<{step: number, action: string, status: string, result: string}>;
+    isAutonomous?: boolean;
+  } | null;
 }
 
 const capabilities = [
@@ -91,6 +97,8 @@ export const ChatContainer = ({
           steps={currentGoal?.steps || []} 
           currentStep={currentGoal?.currentStep || 0}
           isVisible={!!currentGoal}
+          executedActions={currentGoal?.executedActions}
+          isAutonomous={currentGoal?.isAutonomous}
         />
 
         {messages.map((message) => (
