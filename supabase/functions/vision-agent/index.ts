@@ -1,9 +1,41 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+// ===========================================
+// CORS CONFIGURATION - Restrict to allowed origins
+// ===========================================
+const ALLOWED_ORIGINS = [
+  'https://ymbgmsvmesejppjgothe.lovableproject.com',
+  'http://localhost:5173',
+  'http://localhost:8080',
+  'http://localhost:3000',
+];
+
+const getCorsHeaders = (origin: string | null) => {
+  const allowedOrigin = origin && ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+  return {
+    'Access-Control-Allow-Origin': allowedOrigin,
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Credentials': 'true',
+  };
 };
+
+// ===========================================
+// INPUT VALIDATION SCHEMAS
+// ===========================================
+const PreviousActionSchema = z.object({
+  type: z.string().max(50).optional(),
+  target: z.string().max(500).optional(),
+  result: z.string().max(500).optional(),
+}).passthrough();
+
+const VisionRequestSchema = z.object({
+  screenshot: z.string().min(1).max(15000000), // ~11MB base64 max
+  goal: z.string().min(1).max(1000),
+  previousActions: z.array(PreviousActionSchema).max(50).optional().default([]),
+  language: z.enum(['en', 'hi']).optional().default('en'),
+});
 
 // Action types the agent can suggest
 const ACTION_TYPES = {
@@ -60,26 +92,83 @@ SAFETY:
 - Prefer reversible actions when possible`;
 
 serve(async (req) => {
+  const origin = req.headers.get('Origin');
+  const corsHeaders = getCorsHeaders(origin);
+
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { screenshot, goal, previousActions = [], language = "en" } = await req.json();
-    
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      throw new Error("Vision service not configured");
+    // ===========================================
+    // JWT AUTHENTICATION
+    // ===========================================
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      console.error('[vision-agent] Missing authorization header');
+      return new Response(
+        JSON.stringify({ success: false, error: "Authentication required" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
-    if (!screenshot) {
-      throw new Error("No screenshot provided");
+    const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+    const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY");
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY || !LOVABLE_API_KEY) {
+      console.error('[vision-agent] Missing required configuration');
+      return new Response(
+        JSON.stringify({ success: false, error: "Service temporarily unavailable" }),
+        { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
+
+    // Verify the user's JWT
+    const supabaseWithAuth = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      global: { headers: { Authorization: authHeader } }
+    });
+
+    const { data: { user }, error: authError } = await supabaseWithAuth.auth.getUser();
+    if (authError || !user) {
+      console.error('[vision-agent] Invalid JWT:', authError?.message);
+      return new Response(
+        JSON.stringify({ success: false, error: "Invalid or expired authentication" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // ===========================================
+    // INPUT VALIDATION
+    // ===========================================
+    let requestBody;
+    try {
+      requestBody = await req.json();
+    } catch {
+      return new Response(
+        JSON.stringify({ success: false, error: "Invalid request format" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const validationResult = VisionRequestSchema.safeParse(requestBody);
+    if (!validationResult.success) {
+      console.error('[vision-agent] Validation error:', validationResult.error.issues);
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: "Invalid request parameters" 
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const { screenshot, goal, previousActions, language } = validationResult.data;
 
     // Build context from previous actions
     const actionHistory = previousActions.length > 0 
-      ? `\n\nPREVIOUS ACTIONS:\n${previousActions.map((a: any, i: number) => 
-          `${i + 1}. ${a.type}: ${a.target} - ${a.result}`).join('\n')}`
+      ? `\n\nPREVIOUS ACTIONS:\n${previousActions.map((a, i) => 
+          `${i + 1}. ${a.type || 'action'}: ${a.target || 'unknown'} - ${a.result || 'completed'}`).join('\n')}`
       : "";
 
     const userMessage = language === "hi" 
@@ -114,9 +203,14 @@ serve(async (req) => {
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error("Vision API error:", response.status, errorText);
-      throw new Error(`Vision analysis failed: ${response.status}`);
+      console.error("[vision-agent] API error:", response.status);
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: "Unable to analyze the image. Please try again." 
+        }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     const data = await response.json();
@@ -127,12 +221,10 @@ serve(async (req) => {
     // Try to parse JSON response
     let analysisResult;
     try {
-      // Extract JSON from response
       const jsonMatch = content.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         analysisResult = JSON.parse(jsonMatch[0]);
       } else {
-        // Fallback: create structured response from text
         analysisResult = {
           ui_state: { application: "Unknown", current_screen: "Analysis complete" },
           analysis: content,
@@ -144,7 +236,7 @@ serve(async (req) => {
           }
         };
       }
-    } catch (parseError) {
+    } catch {
       console.log("JSON parse failed, using text response");
       analysisResult = {
         analysis: content,
@@ -163,14 +255,15 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error("Vision agent error:", error);
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    console.error("[vision-agent] Error:", error);
+    
+    // Generic error message - never expose internal details
     return new Response(
       JSON.stringify({ 
-        error: errorMessage,
-        success: false 
+        success: false, 
+        error: "Unable to process the request. Please try again."
       }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 500, headers: { ...getCorsHeaders(req.headers.get('Origin')), "Content-Type": "application/json" } }
     );
   }
 });
