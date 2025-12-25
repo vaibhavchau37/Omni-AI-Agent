@@ -1,146 +1,66 @@
-import { Target, Calendar, AlertTriangle, Mic, ArrowRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Target, Calendar, AlertTriangle, ArrowRight } from "lucide-react";
 
 interface DemoScenariosProps {
   onSelectDemo: (message: string) => void;
   disabled?: boolean;
 }
 
-const DEMO_SCENARIOS_EN = [
+const DEMOS = [
   {
     id: "goal",
     title: "Goal-Based AI",
-    description: "Multi-step planning & execution",
+    desc: "Multi-step planning",
     icon: Target,
     message: "Help me prepare for an AI engineer interview at a tech company",
-    gradient: "from-blue-500/15 to-cyan-500/15",
-    border: "border-blue-500/25 hover:border-blue-400/50",
-    iconColor: "text-blue-400",
+    color: "from-blue-500/20 to-cyan-500/20 border-blue-500/30 hover:border-blue-400/60",
+    iconBg: "bg-blue-500/15 text-blue-400",
   },
   {
     id: "workflow",
-    title: "Workflow Automation",
-    description: "Smart task scheduling",
+    title: "Workflow",
+    desc: "Task scheduling",
     icon: Calendar,
-    message: "Schedule a team meeting for next Monday at 2 PM and send calendar invites to the engineering team",
-    gradient: "from-emerald-500/15 to-green-500/15",
-    border: "border-emerald-500/25 hover:border-emerald-400/50",
-    iconColor: "text-emerald-400",
+    message: "Schedule a team meeting for next Monday at 2 PM and send calendar invites",
+    color: "from-emerald-500/20 to-green-500/20 border-emerald-500/30 hover:border-emerald-400/60",
+    iconBg: "bg-emerald-500/15 text-emerald-400",
   },
   {
     id: "recovery",
-    title: "Failure Recovery",
-    description: "Intelligent error handling",
+    title: "Recovery",
+    desc: "Error handling",
     icon: AlertTriangle,
-    message: "I tried to book a flight but the system crashed. Can you help me recover my booking? Booking reference: XYZ123",
-    gradient: "from-amber-500/15 to-orange-500/15",
-    border: "border-amber-500/25 hover:border-amber-400/50",
-    iconColor: "text-amber-400",
-  },
-];
-
-const DEMO_SCENARIOS_HI = [
-  {
-    id: "goal-hi",
-    title: "लक्ष्य-आधारित AI",
-    description: "चरण-दर-चरण योजना",
-    icon: Target,
-    message: "मुझे AI इंजीनियर इंटरव्यू की तैयारी में मदद करो",
-    gradient: "from-blue-500/15 to-cyan-500/15",
-    border: "border-blue-500/25 hover:border-blue-400/50",
-    iconColor: "text-blue-400",
-  },
-  {
-    id: "workflow-hi",
-    title: "कार्य स्वचालन",
-    description: "कार्य निर्धारण",
-    icon: Calendar,
-    message: "अगले सोमवार दोपहर 2 बजे टीम मीटिंग शेड्यूल करो",
-    gradient: "from-emerald-500/15 to-green-500/15",
-    border: "border-emerald-500/25 hover:border-emerald-400/50",
-    iconColor: "text-emerald-400",
-  },
-  {
-    id: "voice-hi",
-    title: "वॉइस कमांड",
-    description: "आवाज़ से नियंत्रण",
-    icon: Mic,
-    message: "मेरे कल के सभी काम बताओ और सबसे ज़रूरी काम पहले करो",
-    gradient: "from-purple-500/15 to-pink-500/15",
-    border: "border-purple-500/25 hover:border-purple-400/50",
-    iconColor: "text-purple-400",
+    message: "I tried to book a flight but the system crashed. Help me recover my booking",
+    color: "from-amber-500/20 to-orange-500/20 border-amber-500/30 hover:border-amber-400/60",
+    iconBg: "bg-amber-500/15 text-amber-400",
   },
 ];
 
 export const DemoScenarios = ({ onSelectDemo, disabled }: DemoScenariosProps) => {
   return (
-    <div className="space-y-4 slide-up">
+    <div className="space-y-3">
       <div className="text-center">
-        <h3 className="text-sm font-semibold text-foreground mb-1">
-          Quick Start Demos
-        </h3>
-        <p className="text-xs text-muted-foreground">
-          Click to experience AI capabilities
-        </p>
+        <p className="text-xs text-muted-foreground">Try a demo</p>
       </div>
       
-      <Tabs defaultValue="english" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 max-w-[240px] mx-auto mb-4 h-9">
-          <TabsTrigger value="english" className="text-xs font-medium">
-            🇺🇸 English
-          </TabsTrigger>
-          <TabsTrigger value="hindi" className="text-xs font-medium">
-            🇮🇳 हिंदी
-          </TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="english" className="mt-0">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {DEMO_SCENARIOS_EN.map((demo) => (
-              <Button
-                key={demo.id}
-                variant="outline"
-                onClick={() => onSelectDemo(demo.message)}
-                disabled={disabled}
-                className={`group h-auto py-5 px-4 flex flex-col items-center gap-3 bg-gradient-to-br ${demo.gradient} ${demo.border} transition-all duration-300 hover-lift`}
-              >
-                <div className={`p-2.5 rounded-xl bg-background/50 ${demo.iconColor}`}>
-                  <demo.icon className="w-5 h-5" />
-                </div>
-                <div className="text-center space-y-1">
-                  <div className="font-semibold text-sm text-foreground">{demo.title}</div>
-                  <div className="text-xs text-muted-foreground">{demo.description}</div>
-                </div>
-                <ArrowRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-foreground group-hover:translate-x-0.5 transition-all" />
-              </Button>
-            ))}
-          </div>
-        </TabsContent>
-        
-        <TabsContent value="hindi" className="mt-0">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {DEMO_SCENARIOS_HI.map((demo) => (
-              <Button
-                key={demo.id}
-                variant="outline"
-                onClick={() => onSelectDemo(demo.message)}
-                disabled={disabled}
-                className={`group h-auto py-5 px-4 flex flex-col items-center gap-3 bg-gradient-to-br ${demo.gradient} ${demo.border} transition-all duration-300 hover-lift`}
-              >
-                <div className={`p-2.5 rounded-xl bg-background/50 ${demo.iconColor}`}>
-                  <demo.icon className="w-5 h-5" />
-                </div>
-                <div className="text-center space-y-1">
-                  <div className="font-semibold text-sm text-foreground">{demo.title}</div>
-                  <div className="text-xs text-muted-foreground">{demo.description}</div>
-                </div>
-                <ArrowRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-foreground group-hover:translate-x-0.5 transition-all" />
-              </Button>
-            ))}
-          </div>
-        </TabsContent>
-      </Tabs>
+      <div className="grid grid-cols-3 gap-2">
+        {DEMOS.map((demo) => (
+          <button
+            key={demo.id}
+            onClick={() => onSelectDemo(demo.message)}
+            disabled={disabled}
+            className={`group p-3 rounded-xl bg-gradient-to-br ${demo.color} border transition-all duration-200 hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed text-left`}
+          >
+            <div className={`w-8 h-8 rounded-lg ${demo.iconBg} flex items-center justify-center mb-2`}>
+              <demo.icon className="w-4 h-4" />
+            </div>
+            <div className="space-y-0.5">
+              <p className="text-xs font-semibold text-foreground">{demo.title}</p>
+              <p className="text-[10px] text-muted-foreground">{demo.desc}</p>
+            </div>
+            <ArrowRight className="w-3 h-3 text-muted-foreground/50 group-hover:text-foreground mt-2 transition-colors" />
+          </button>
+        ))}
+      </div>
     </div>
   );
 };

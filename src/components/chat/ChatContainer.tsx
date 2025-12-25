@@ -4,6 +4,7 @@ import { TypingIndicator } from "./TypingIndicator";
 import { AgentActivityLog, AgentActivity } from "./AgentActivityLog";
 import { GoalTracker } from "./GoalTracker";
 import { WelcomeScreen } from "./WelcomeScreen";
+import { DemoScenarios } from "./DemoScenarios";
 
 interface Message {
   id: string;
@@ -32,6 +33,7 @@ interface ChatContainerProps {
     executedActions?: Array<{step: number, action: string, status: string, result: string}>;
     isAutonomous?: boolean;
   } | null;
+  onSelectDemo?: (message: string) => void;
 }
 
 export const ChatContainer = ({ 
@@ -40,7 +42,8 @@ export const ChatContainer = ({
   agentActivities,
   onSpeak, 
   speakingMessageId,
-  currentGoal
+  currentGoal,
+  onSelectDemo
 }: ChatContainerProps) => {
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -49,9 +52,17 @@ export const ChatContainer = ({
   }, [messages, isTyping, agentActivities]);
 
   return (
-    <div className="flex-1 overflow-y-auto scrollbar-thin px-4 py-6">
-      <div className="max-w-4xl mx-auto space-y-6">
-        {messages.length === 0 && <WelcomeScreen />}
+    <div className="flex-1 overflow-y-auto scrollbar-thin px-4 py-4">
+      <div className="max-w-3xl mx-auto space-y-4">
+        {/* Welcome + Demos (only when empty) */}
+        {messages.length === 0 && (
+          <>
+            <WelcomeScreen />
+            {onSelectDemo && (
+              <DemoScenarios onSelectDemo={onSelectDemo} disabled={isTyping} />
+            )}
+          </>
+        )}
 
         {/* Goal Tracker */}
         {currentGoal && (
@@ -66,30 +77,28 @@ export const ChatContainer = ({
         )}
 
         {/* Messages */}
-        <div className="space-y-4">
-          {messages.map((message) => (
-            <ChatMessage 
-              key={message.id} 
-              role={message.role} 
-              content={message.content}
-              intent={message.intent}
-              confidence={message.confidence}
-              emotion={message.emotion}
-              showEscalation={message.showEscalation}
-              selectedTool={message.selectedTool}
-              toolReason={message.toolReason}
-              reasoning={message.reasoning}
-              retryCount={message.retryCount}
-              onSpeak={message.role === "assistant" && onSpeak ? () => onSpeak(message.content) : undefined}
-              isSpeaking={speakingMessageId === message.id}
-            />
-          ))}
-        </div>
+        {messages.map((message) => (
+          <ChatMessage 
+            key={message.id} 
+            role={message.role} 
+            content={message.content}
+            intent={message.intent}
+            confidence={message.confidence}
+            emotion={message.emotion}
+            showEscalation={message.showEscalation}
+            selectedTool={message.selectedTool}
+            toolReason={message.toolReason}
+            reasoning={message.reasoning}
+            retryCount={message.retryCount}
+            onSpeak={message.role === "assistant" && onSpeak ? () => onSpeak(message.content) : undefined}
+            isSpeaking={speakingMessageId === message.id}
+          />
+        ))}
 
-        {/* Agent Activity Log */}
+        {/* Activity Log */}
         <AgentActivityLog activities={agentActivities} isVisible={isTyping} />
 
-        {/* Typing Indicator */}
+        {/* Typing */}
         {isTyping && <TypingIndicator />}
         
         <div ref={bottomRef} />
