@@ -1,36 +1,47 @@
 import { useRef, useEffect } from "react";
 import { ChatMessage } from "./ChatMessage";
 import { TypingIndicator } from "./TypingIndicator";
-import { Zap, MessageSquare, Calendar, HelpCircle, Wrench, Search } from "lucide-react";
+import { AgentActivityLog, AgentActivity } from "./AgentActivityLog";
+import { Zap, MessageSquare, Calendar, HelpCircle, Wrench, Search, Brain, Users } from "lucide-react";
 
 interface Message {
   id: string;
   role: "user" | "assistant";
   content: string;
   intent?: string;
+  confidence?: "high" | "medium" | "low";
+  emotion?: "positive" | "neutral" | "negative" | "frustrated";
+  showEscalation?: boolean;
 }
 
 interface ChatContainerProps {
   messages: Message[];
   isTyping: boolean;
+  agentActivities: AgentActivity[];
   onSpeak?: (content: string) => void;
   speakingMessageId?: string | null;
 }
 
 const capabilities = [
-  { icon: MessageSquare, label: "Answer Questions", desc: "General inquiries" },
-  { icon: Search, label: "Find Information", desc: "Data retrieval" },
-  { icon: Wrench, label: "Execute Tasks", desc: "Workflow automation" },
+  { icon: Brain, label: "Multi-Agent AI", desc: "Collaborative thinking" },
+  { icon: MessageSquare, label: "Smart Replies", desc: "Context-aware" },
+  { icon: Wrench, label: "Task Execution", desc: "Step-by-step" },
   { icon: Calendar, label: "Scheduling", desc: "Appointments" },
-  { icon: HelpCircle, label: "Support", desc: "Help & guidance" },
+  { icon: Users, label: "Escalation", desc: "Human support" },
 ];
 
-export const ChatContainer = ({ messages, isTyping, onSpeak, speakingMessageId }: ChatContainerProps) => {
+export const ChatContainer = ({ 
+  messages, 
+  isTyping, 
+  agentActivities,
+  onSpeak, 
+  speakingMessageId 
+}: ChatContainerProps) => {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, isTyping]);
+  }, [messages, isTyping, agentActivities]);
 
   return (
     <div className="flex-1 overflow-y-auto scrollbar-thin px-4 py-6">
@@ -43,8 +54,11 @@ export const ChatContainer = ({ messages, isTyping, onSpeak, speakingMessageId }
             <h2 className="text-2xl font-semibold text-foreground mb-2">
               Welcome to <span className="gradient-text">OmniAgent</span>
             </h2>
-            <p className="text-muted-foreground max-w-md mx-auto mb-8">
-              Your intelligent AI assistant. I can understand your intent and help with various tasks.
+            <p className="text-muted-foreground max-w-md mx-auto mb-2">
+              Your intelligent multi-agent AI assistant with memory, emotion detection, and self-evaluation.
+            </p>
+            <p className="text-xs text-muted-foreground/70 mb-8">
+              Try: "Hi, my name is Vaibhav" or ask a complex question!
             </p>
             
             <div className="grid grid-cols-2 md:grid-cols-5 gap-3 max-w-2xl mx-auto">
@@ -69,10 +83,16 @@ export const ChatContainer = ({ messages, isTyping, onSpeak, speakingMessageId }
             role={message.role} 
             content={message.content}
             intent={message.intent}
+            confidence={message.confidence}
+            emotion={message.emotion}
+            showEscalation={message.showEscalation}
             onSpeak={message.role === "assistant" && onSpeak ? () => onSpeak(message.content) : undefined}
             isSpeaking={speakingMessageId === message.id}
           />
         ))}
+
+        {/* Agent Activity Log during processing */}
+        <AgentActivityLog activities={agentActivities} isVisible={isTyping} />
 
         {isTyping && <TypingIndicator />}
         

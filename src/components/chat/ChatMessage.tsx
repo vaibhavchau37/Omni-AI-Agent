@@ -1,11 +1,17 @@
 import { cn } from "@/lib/utils";
-import { Bot, User, Tag, Volume2 } from "lucide-react";
+import { Bot, User, Tag, Volume2, Heart, Frown, Smile, Meh } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ConfidenceMeter } from "./ConfidenceMeter";
+import { EscalationBanner } from "./EscalationBanner";
+import { toast } from "@/hooks/use-toast";
 
 interface ChatMessageProps {
   role: "user" | "assistant";
   content: string;
   intent?: string;
+  confidence?: "high" | "medium" | "low";
+  emotion?: "positive" | "neutral" | "negative" | "frustrated";
+  showEscalation?: boolean;
   onSpeak?: () => void;
   isSpeaking?: boolean;
 }
@@ -19,8 +25,32 @@ const intentColors: Record<string, string> = {
   "Unknown Intent": "bg-muted text-muted-foreground border-border",
 };
 
-export const ChatMessage = ({ role, content, intent, onSpeak, isSpeaking }: ChatMessageProps) => {
+const emotionConfig = {
+  positive: { icon: Smile, color: "text-green-400", label: "Positive" },
+  neutral: { icon: Meh, color: "text-blue-400", label: "Neutral" },
+  negative: { icon: Frown, color: "text-orange-400", label: "Concerned" },
+  frustrated: { icon: Heart, color: "text-red-400", label: "Needs Care" },
+};
+
+export const ChatMessage = ({ 
+  role, 
+  content, 
+  intent, 
+  confidence,
+  emotion,
+  showEscalation,
+  onSpeak, 
+  isSpeaking 
+}: ChatMessageProps) => {
   const isAssistant = role === "assistant";
+  const EmotionIcon = emotion ? emotionConfig[emotion].icon : null;
+
+  const handleEscalate = () => {
+    toast({
+      title: "Escalation Requested",
+      description: "A human support agent will be connected shortly.",
+    });
+  };
 
   return (
     <div
@@ -36,17 +66,36 @@ export const ChatMessage = ({ role, content, intent, onSpeak, isSpeaking }: Chat
       )}
       
       <div className="flex flex-col gap-1.5 max-w-[75%]">
-        {intent && isAssistant && (
-          <div className="flex items-center gap-1.5">
-            <Tag className="w-3 h-3 text-muted-foreground" />
-            <span className={cn(
-              "text-xs px-2 py-0.5 rounded-full border",
-              intentColors[intent] || intentColors["Unknown Intent"]
-            )}>
-              {intent}
-            </span>
+        {/* Intent and Emotion badges for assistant */}
+        {isAssistant && (intent || emotion) && (
+          <div className="flex items-center gap-2 flex-wrap">
+            {intent && (
+              <div className="flex items-center gap-1.5">
+                <Tag className="w-3 h-3 text-muted-foreground" />
+                <span className={cn(
+                  "text-xs px-2 py-0.5 rounded-full border",
+                  intentColors[intent] || intentColors["Unknown Intent"]
+                )}>
+                  {intent}
+                </span>
+              </div>
+            )}
+            {confidence && (
+              <ConfidenceMeter level={confidence} />
+            )}
           </div>
         )}
+
+        {/* User emotion indicator */}
+        {!isAssistant && emotion && EmotionIcon && (
+          <div className="flex items-center gap-1.5 justify-end">
+            <span className={cn("text-xs", emotionConfig[emotion].color)}>
+              {emotionConfig[emotion].label}
+            </span>
+            <EmotionIcon className={cn("w-3.5 h-3.5", emotionConfig[emotion].color)} />
+          </div>
+        )}
+
         <div
           className={cn(
             "px-4 py-3 rounded-2xl text-sm leading-relaxed",
@@ -74,6 +123,14 @@ export const ChatMessage = ({ role, content, intent, onSpeak, isSpeaking }: Chat
             </div>
           )}
         </div>
+
+        {/* Escalation banner for low confidence */}
+        {isAssistant && showEscalation && (
+          <EscalationBanner 
+            onEscalate={handleEscalate}
+            reason="My confidence is low on this topic."
+          />
+        )}
       </div>
 
       {!isAssistant && (

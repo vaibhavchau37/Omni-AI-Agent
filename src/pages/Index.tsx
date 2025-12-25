@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { ChatHeader } from "@/components/chat/ChatHeader";
 import { ChatContainer } from "@/components/chat/ChatContainer";
 import { ChatInput } from "@/components/chat/ChatInput";
+import { AgentActivity } from "@/components/chat/AgentActivityLog";
 import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 import { useTextToSpeech } from "@/hooks/useTextToSpeech";
 import { toast } from "@/hooks/use-toast";
@@ -12,9 +13,11 @@ interface Message {
   role: "user" | "assistant";
   content: string;
   intent?: string;
+  confidence?: "high" | "medium" | "low";
+  emotion?: "positive" | "neutral" | "negative" | "frustrated";
+  showEscalation?: boolean;
 }
 
-// Intent Classification
 type IntentType = 
   | "General Question"
   | "Information Request"
@@ -24,71 +27,23 @@ type IntentType =
   | "Unknown Intent";
 
 const classifyIntent = (message: string): IntentType => {
-  const lowerMessage = message.toLowerCase();
+  const lower = message.toLowerCase();
   
-  if (
-    lowerMessage.includes("schedule") ||
-    lowerMessage.includes("appointment") ||
-    lowerMessage.includes("book") ||
-    lowerMessage.includes("meeting") ||
-    lowerMessage.includes("calendar") ||
-    lowerMessage.includes("remind")
-  ) {
+  if (/schedule|appointment|book|meeting|calendar|remind/.test(lower)) {
     return "Appointment / Scheduling";
   }
-  
-  if (
-    lowerMessage.includes("create") ||
-    lowerMessage.includes("execute") ||
-    lowerMessage.includes("run") ||
-    lowerMessage.includes("do ") ||
-    lowerMessage.includes("make") ||
-    lowerMessage.includes("generate") ||
-    lowerMessage.includes("send") ||
-    lowerMessage.includes("update") ||
-    lowerMessage.includes("build") ||
-    lowerMessage.includes("set up")
-  ) {
+  if (/create|execute|run|do |make|generate|send|update|build|set up/.test(lower)) {
     return "Task Execution";
   }
-  
-  if (
-    lowerMessage.includes("help") ||
-    lowerMessage.includes("support") ||
-    lowerMessage.includes("issue") ||
-    lowerMessage.includes("problem") ||
-    lowerMessage.includes("trouble") ||
-    lowerMessage.includes("fix") ||
-    lowerMessage.includes("error")
-  ) {
+  if (/help|support|issue|problem|trouble|fix|error/.test(lower)) {
     return "Support / Help";
   }
-  
-  if (
-    lowerMessage.includes("find") ||
-    lowerMessage.includes("search") ||
-    lowerMessage.includes("look up") ||
-    lowerMessage.includes("get me") ||
-    lowerMessage.includes("show me") ||
-    lowerMessage.includes("list") ||
-    lowerMessage.includes("tell me about")
-  ) {
+  if (/find|search|look up|get me|show me|list|tell me about/.test(lower)) {
     return "Information Request";
   }
-  
-  if (
-    lowerMessage.includes("what") ||
-    lowerMessage.includes("how") ||
-    lowerMessage.includes("why") ||
-    lowerMessage.includes("when") ||
-    lowerMessage.includes("where") ||
-    lowerMessage.includes("who") ||
-    lowerMessage.includes("can you") ||
-    lowerMessage.includes("?")
-  ) {
+  if (/what|how|why|when|where|who|can you|\?/.test(lower)) {
     return "General Question";
   }
-  
   return "Unknown Intent";
 };
 
@@ -97,12 +52,12 @@ const Index = () => {
   const [isTyping, setIsTyping] = useState(false);
   const [isVoiceMode, setIsVoiceMode] = useState(false);
   const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
+  const [agentActivities, setAgentActivities] = useState<AgentActivity[]>([]);
   const conversationHistory = useRef<Array<{ role: "user" | "assistant"; content: string }>>([]);
   
   const { isListening, transcript, toggleListening, resetTranscript } = useSpeechRecognition();
   const { speak, stop, isSpeaking } = useTextToSpeech();
 
-  // Handle voice transcript
   useEffect(() => {
     if (!isListening && transcript) {
       setIsVoiceMode(true);
@@ -111,18 +66,49 @@ const Index = () => {
     }
   }, [isListening, transcript]);
 
-  // Sync speaking state
   useEffect(() => {
-    if (!isSpeaking) {
-      setSpeakingMessageId(null);
-    }
+    if (!isSpeaking) setSpeakingMessageId(null);
   }, [isSpeaking]);
 
-  const addMessage = useCallback((role: "user" | "assistant", content: string, intent?: string): string => {
+  const addMessage = useCallback((
+    role: "user" | "assistant", 
+    content: string, 
+    extras?: {
+      intent?: string;
+      confidence?: "high" | "medium" | "low";
+      emotion?: "positive" | "neutral" | "negative" | "frustrated";
+      showEscalation?: boolean;
+    }
+  ): string => {
     const id = Date.now().toString();
-    setMessages(prev => [...prev, { id, role, content, intent }]);
+    setMessages(prev => [...prev, { id, role, content, ...extras }]);
     conversationHistory.current.push({ role, content });
     return id;
+  }, []);
+
+  const simulateAgentActivity = useCallback((activities: Array<{agent: string, action: string}>) => {
+    setAgentActivities([]);
+    
+    activities.forEach((activity, index) => {
+      setTimeout(() => {
+        const activityId = `${Date.now()}_${index}`;
+        setAgentActivities(prev => [
+          ...prev.map(a => ({ ...a, status: "complete" as const })),
+          { 
+            id: activityId, 
+            agent: activity.agent as AgentActivity["agent"], 
+            action: activity.action, 
+            status: "running" as const,
+            timestamp: Date.now()
+          }
+        ]);
+      }, index * 800);
+    });
+
+    // Mark all complete after last one
+    setTimeout(() => {
+      setAgentActivities(prev => prev.map(a => ({ ...a, status: "complete" as const })));
+    }, activities.length * 800 + 500);
   }, []);
 
   const handleSpeak = useCallback((content: string) => {
@@ -142,62 +128,72 @@ const Index = () => {
   const handleClearSession = useCallback(() => {
     setMessages([]);
     conversationHistory.current = [];
+    setAgentActivities([]);
     stop();
     setSpeakingMessageId(null);
   }, [stop]);
 
   const handleSendMessage = async (content: string) => {
-    // Add user message
+    const intent = classifyIntent(content);
     addMessage("user", content);
     setIsTyping(true);
-
-    // Classify intent
-    const intent = classifyIntent(content);
+    setAgentActivities([]);
 
     try {
-      // Call AI backend
       const response = await sendChatMessage(
         [...conversationHistory.current],
         isVoiceMode,
         intent
       );
 
+      // Simulate agent activities if returned
+      if (response.agentActivities) {
+        simulateAgentActivity(response.agentActivities);
+      }
+
       if (response.error) {
-        // Handle error gracefully
-        const errorMessage = response.error;
-        const messageId = addMessage("assistant", errorMessage, "Support / Help");
+        const messageId = addMessage("assistant", response.error, { 
+          intent: "Support / Help",
+          confidence: "low"
+        });
         
         if (response.errorType === "rate_limit") {
           toast({
             title: "Please wait",
-            description: "Too many requests. Try again in a moment.",
+            description: "Too many requests. Try again shortly.",
             variant: "destructive",
           });
         }
         
         if (isVoiceMode) {
           setSpeakingMessageId(messageId);
-          speak(errorMessage);
+          speak(response.error);
         }
       } else if (response.content) {
-        // Success - add response
-        const messageId = addMessage("assistant", response.content, response.intent || intent);
+        const messageId = addMessage("assistant", response.content, {
+          intent: response.intent || intent,
+          confidence: response.confidence,
+          emotion: response.emotion,
+          showEscalation: response.shouldEscalate
+        });
         
-        // Auto-speak in voice mode
         if (isVoiceMode) {
           setSpeakingMessageId(messageId);
           speak(response.content);
         }
       }
     } catch (err) {
-      // Unexpected error - apologize politely
       console.error("Unexpected error:", err);
-      const errorMessage = "I apologize, but something unexpected happened. Please try again, or let me know how else I can help.";
-      const messageId = addMessage("assistant", errorMessage, "Support / Help");
+      const errorMsg = "I apologize, but something unexpected happened. Please try again.";
+      const messageId = addMessage("assistant", errorMsg, { 
+        intent: "Support / Help",
+        confidence: "low",
+        showEscalation: true
+      });
       
       if (isVoiceMode) {
         setSpeakingMessageId(messageId);
-        speak(errorMessage);
+        speak(errorMsg);
       }
     }
 
@@ -208,18 +204,12 @@ const Index = () => {
   const handleVoiceToggle = () => {
     if (isListening) {
       toggleListening();
-      toast({
-        title: "Processing your voice",
-        description: "I'll respond in a moment...",
-      });
+      toast({ title: "Processing your voice", description: "Responding shortly..." });
     } else {
       stop();
       setSpeakingMessageId(null);
       toggleListening();
-      toast({
-        title: "Listening...",
-        description: "Speak naturally. I'll respond conversationally.",
-      });
+      toast({ title: "Listening...", description: "Speak naturally." });
     }
   };
 
@@ -229,6 +219,7 @@ const Index = () => {
       <ChatContainer 
         messages={messages} 
         isTyping={isTyping}
+        agentActivities={agentActivities}
         onSpeak={handleSpeak}
         speakingMessageId={speakingMessageId}
       />
