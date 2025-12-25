@@ -11,6 +11,8 @@ interface ChatResponse {
   error?: string;
   errorType?: string;
   confidence?: "high" | "medium" | "low";
+  confidenceScore?: number;
+  needsUserConfirmation?: boolean;
   emotion?: "positive" | "neutral" | "negative" | "frustrated";
   shouldEscalate?: boolean;
   agentActivities?: Array<{agent: string, action: string}>;

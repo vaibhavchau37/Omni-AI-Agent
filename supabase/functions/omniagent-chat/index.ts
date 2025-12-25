@@ -27,7 +27,176 @@ const ChatRequestSchema = z.object({
   agentRole: z.enum(['default', 'student_assistant', 'hr_assistant', 'customer_support', 'admin_agent']).optional().default('default'),
   isSimulation: z.boolean().optional().default(false),
   explainDecision: z.boolean().optional().default(false),
+  replayTask: z.string().optional(), // Task ID for replay
 });
+
+// ===========================================
+// CONFIDENCE THRESHOLD CONFIGURATION
+// ===========================================
+const CONFIDENCE_THRESHOLD = 0.70; // Below this, ask user before acting
+const MAX_RETRY_ATTEMPTS = 2;
+
+// ===========================================
+// BEHAVIOR LEARNING HELPERS
+// ===========================================
+const detectBehaviorPatterns = (
+  messages: Array<{role: string, content: string}>,
+  currentMessage: string
+): Array<{pattern_type: string, pattern_key: string, pattern_value: string}> => {
+  const patterns: Array<{pattern_type: string, pattern_key: string, pattern_value: string}> = [];
+  const lower = currentMessage.toLowerCase();
+  
+  // Detect repeated search patterns
+  const searchPatterns = [
+    /search (?:for )?(.+)/i,
+    /find (?:me )?(.+)/i,
+    /look up (.+)/i,
+    /google (.+)/i,
+  ];
+  
+  for (const pattern of searchPatterns) {
+    const match = currentMessage.match(pattern);
+    if (match?.[1]) {
+      patterns.push({
+        pattern_type: 'repeated_search',
+        pattern_key: 'search_topic',
+        pattern_value: match[1].trim()
+      });
+    }
+  }
+  
+  // Detect time-based patterns
+  const timePatterns = [
+    { regex: /every (?:day|morning|evening|night)/i, type: 'daily_routine' },
+    { regex: /every (?:week|monday|tuesday|wednesday|thursday|friday|saturday|sunday)/i, type: 'weekly_routine' },
+    { regex: /remind me (?:at|about) (.+)/i, type: 'reminder_pattern' },
+  ];
+  
+  for (const { regex, type } of timePatterns) {
+    const match = currentMessage.match(regex);
+    if (match) {
+      patterns.push({
+        pattern_type: type,
+        pattern_key: 'schedule',
+        pattern_value: currentMessage
+      });
+    }
+  }
+  
+  // Detect tool preferences
+  for (const tool of AVAILABLE_TOOLS) {
+    for (const trigger of tool.triggers) {
+      if (lower.includes(trigger)) {
+        patterns.push({
+          pattern_type: 'tool_preference',
+          pattern_key: tool.name,
+          pattern_value: `Uses ${tool.name} frequently`
+        });
+        break;
+      }
+    }
+  }
+  
+  return patterns;
+};
+
+// ===========================================
+// ERROR RECOVERY HELPERS
+// ===========================================
+const generateAlternativeStrategy = async (
+  apiKey: string,
+  originalTask: string,
+  errorReason: string
+): Promise<string> => {
+  try {
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [
+          { 
+            role: "system", 
+            content: "You are an error recovery specialist. Given a failed task and error reason, suggest ONE alternative approach in 1-2 sentences. Be specific and actionable." 
+          },
+          { 
+            role: "user", 
+            content: `Task: ${originalTask}\nError: ${errorReason}\n\nSuggest an alternative approach:` 
+          },
+        ],
+        max_tokens: 100,
+      }),
+    });
+
+    if (!response.ok) return "Try breaking down the task into smaller steps.";
+    
+    const data = await response.json();
+    return data.choices?.[0]?.message?.content || "Try a different approach or rephrase your request.";
+  } catch {
+    return "Try rephrasing your request or breaking it into smaller steps.";
+  }
+};
+
+// ===========================================
+// TASK WORKFLOW HELPERS
+// ===========================================
+const createTaskWorkflow = (
+  taskName: string,
+  taskDescription: string,
+  steps: Array<{step: number, action: string, status: string, result?: string}>,
+  executionTimeMs: number
+): {
+  task_name: string;
+  task_description: string;
+  workflow_steps: unknown;
+  execution_time_ms: number;
+  status: string;
+} => {
+  const allSucceeded = steps.every(s => s.status === 'completed');
+  const anySucceeded = steps.some(s => s.status === 'completed');
+  
+  // Transform steps to include description from result
+  const workflowSteps = steps.map(s => ({
+    step: s.step,
+    description: s.result || `Step ${s.step}`,
+    action: s.action,
+    status: s.status
+  }));
+  
+  return {
+    task_name: taskName,
+    task_description: taskDescription,
+    workflow_steps: workflowSteps,
+    execution_time_ms: executionTimeMs,
+    status: allSucceeded ? 'completed' : anySucceeded ? 'partial' : 'failed'
+  };
+};
+
+// ===========================================
+// CONFIDENCE SCORING HELPERS
+// ===========================================
+const calculateConfidenceScore = (
+  confidence: "high" | "medium" | "low",
+  emotion: string,
+  hasGoal: boolean,
+  retryCount: number
+): number => {
+  let score = confidence === "high" ? 0.9 : confidence === "medium" ? 0.7 : 0.4;
+  
+  // Adjust based on context
+  if (emotion === "frustrated") score -= 0.1;
+  if (hasGoal) score += 0.05;
+  if (retryCount > 0) score -= 0.1 * retryCount;
+  
+  return Math.max(0, Math.min(1, score));
+};
+
+const shouldAskUserBeforeAction = (confidenceScore: number): boolean => {
+  return confidenceScore < CONFIDENCE_THRESHOLD;
+};
 
 // Available tools for agent - Desktop Actions
 const AVAILABLE_TOOLS = [
@@ -996,11 +1165,19 @@ Write a brief, professional completion report. Tell the user what was accomplish
       finalResponse += `\n\n---\n**Why I answered this way:**\n${reasoning}`;
     }
 
-    // Store new memories using authenticated client (respects RLS)
+    // Calculate confidence score
+    const confidenceScore = calculateConfidenceScore(confidence, emotion, isGoal, totalRetries);
+    const needsUserConfirmation = shouldAskUserBeforeAction(confidenceScore);
+
+    // Store data using service role
+    const supabaseService = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY!);
+    const responseTime = Date.now() - startTime;
+
     if (sessionId && !isSimulation) {
+      // Store new memories
       const newMemories = extractMemories(lastMessage);
       for (const memory of newMemories) {
-        await supabaseWithAuth
+        await supabaseService
           .from('conversation_memory')
           .insert({
             session_id: sessionId,
@@ -1010,9 +1187,68 @@ Write a brief, professional completion report. Tell the user what was accomplish
           });
       }
 
-      // Log analytics - use service role for system metrics only
-      const supabaseService = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY!);
-      const responseTime = Date.now() - startTime;
+      // Detect and store behavior patterns
+      const detectedPatterns = detectBehaviorPatterns(messages, lastMessage);
+      for (const pattern of detectedPatterns) {
+        // Check if pattern already exists
+        const { data: existingPattern } = await supabaseService
+          .from('behavior_patterns')
+          .select('id, occurrence_count, confidence_score')
+          .eq('session_id', sessionId)
+          .eq('pattern_key', pattern.pattern_key)
+          .eq('pattern_value', pattern.pattern_value)
+          .single();
+
+        if (existingPattern) {
+          // Update existing pattern
+          const newCount = (existingPattern.occurrence_count || 1) + 1;
+          const newConfidence = Math.min(0.95, (Number(existingPattern.confidence_score) || 0.5) + 0.1);
+          await supabaseService
+            .from('behavior_patterns')
+            .update({
+              occurrence_count: newCount,
+              confidence_score: newConfidence,
+              last_occurred_at: new Date().toISOString(),
+            })
+            .eq('id', existingPattern.id);
+        } else {
+          // Insert new pattern
+          await supabaseService.from('behavior_patterns').insert({
+            session_id: sessionId,
+            pattern_type: pattern.pattern_type,
+            pattern_key: pattern.pattern_key,
+            pattern_value: pattern.pattern_value,
+            occurrence_count: 1,
+            confidence_score: 0.5,
+          });
+        }
+      }
+
+      // Store task workflow if goal was executed
+      if (isGoal && executedActions.length > 0) {
+        const taskWorkflow = createTaskWorkflow(
+          goalDescription || lastMessage.substring(0, 50),
+          lastMessage,
+          executedActions,
+          responseTime
+        );
+        await supabaseService.from('task_workflows').insert({
+          session_id: sessionId,
+          ...taskWorkflow,
+        });
+      }
+
+      // Log confidence score
+      await supabaseService.from('confidence_logs').insert({
+        session_id: sessionId,
+        task_type: isGoal ? 'goal_execution' : 'general_query',
+        confidence_score: confidenceScore,
+        threshold_used: CONFIDENCE_THRESHOLD,
+        action_taken: needsUserConfirmation ? 'asked_user' : 'executed',
+        reasoning: reasoning || null,
+      });
+
+      // Log analytics
       await supabaseService.from('agent_analytics').insert({
         session_id: sessionId,
         intent: intent || "General Question",
@@ -1028,11 +1264,13 @@ Write a brief, professional completion report. Tell the user what was accomplish
 
     console.log("Response generated:", { 
       confidence, 
+      confidenceScore,
       shouldEscalate, 
       emotion, 
       agentCount: agentActivities.length,
       retries: totalRetries,
-      responseTime: Date.now() - startTime
+      responseTime: Date.now() - startTime,
+      behaviorPatternsDetected: detectBehaviorPatterns(messages, lastMessage).length
     });
 
     return new Response(
@@ -1040,6 +1278,8 @@ Write a brief, professional completion report. Tell the user what was accomplish
         content: finalResponse,
         intent: intent || "General Question",
         confidence,
+        confidenceScore,
+        needsUserConfirmation,
         emotion,
         shouldEscalate,
         agentActivities: agentActivities.length > 0 ? agentActivities : undefined,
