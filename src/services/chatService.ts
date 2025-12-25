@@ -92,13 +92,19 @@ export const sendChatMessageStreaming = async (
     
     const { data: { session } } = await supabase.auth.getSession();
     
+    // Require valid authentication
+    if (!session?.access_token) {
+      callbacks.onError("Please log in to continue chatting.");
+      return;
+    }
+    
     const response = await fetch(
       `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/omniagent-chat`,
       {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          "Authorization": `Bearer ${session.access_token}`,
           "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
         },
         body: JSON.stringify({
@@ -109,13 +115,14 @@ export const sendChatMessageStreaming = async (
           agentRole: options?.agentRole || "default",
           isSimulation: options?.isSimulation || false,
           explainDecision: options?.explainDecision || false,
-          stream: true,
         }),
       }
     );
 
     if (!response.ok) {
-      callbacks.onError("Connection failed. Please try again.");
+      const errorData = await response.json().catch(() => ({}));
+      console.error("Chat API error:", response.status, errorData);
+      callbacks.onError(errorData.error || "Connection failed. Please try again.");
       return;
     }
 
