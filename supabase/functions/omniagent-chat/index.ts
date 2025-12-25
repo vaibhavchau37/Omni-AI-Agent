@@ -7,107 +7,188 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// System prompt for OmniAgent with memory awareness
-const createSystemPrompt = (memories: string[], voiceMode: boolean) => {
-  const memorySection = memories.length > 0 
-    ? `\n\nREMEMBERED INFORMATION ABOUT THIS USER:\n${memories.join('\n')}\n\nUse this information naturally in your responses when relevant.`
-    : '';
+// Multi-Agent System Prompts
+const PLANNER_PROMPT = `You are the Planner Agent. Your job is to:
+1. Analyze the user's request
+2. Break down complex tasks into steps
+3. Identify what information is needed
+4. Create an execution plan
 
-  if (voiceMode) {
-    return `You are OmniAgent, an intelligent AI assistant.
+Respond with a brief plan in 2-3 bullet points. Be concise.`;
 
-Keep responses SHORT and CONVERSATIONAL - you're speaking out loud.
+const EXECUTOR_PROMPT = `You are the Executor Agent. Your job is to:
+1. Follow the plan provided
+2. Execute each step logically
+3. Gather and process information
+4. Prepare the response content
 
-Guidelines:
-- Maximum 2-3 sentences per response
-- Use natural pauses (periods, not lists)
-- Be warm and friendly
-- Ask one follow-up question at most
-- Never use bullet points or formatting
-- Sound like a real assistant, not a document
-- If you know the user's name, use it naturally
-- Remember their preferences and refer to them
+Execute the task and provide the result.`;
 
-Always ask if they need anything else at the end.${memorySection}`;
+const SUPPORT_PROMPT = `You are the Support Agent. Your job is to:
+1. Make responses friendly and clear
+2. Ensure the user feels heard
+3. Add helpful context when needed
+4. Detect user emotion and adjust tone
+
+If user seems frustrated, be extra empathetic.
+If user seems happy, match their energy.`;
+
+const EVALUATOR_PROMPT = `You are the Evaluator Agent. Your job is to:
+1. Review the response for accuracy
+2. Simplify explanations
+3. Remove unnecessary content
+4. Rate confidence (HIGH, MEDIUM, LOW)
+5. Flag if human escalation is needed
+
+Respond with:
+CONFIDENCE: [HIGH/MEDIUM/LOW]
+ESCALATE: [YES/NO]
+IMPROVED_RESPONSE: [your improved version]`;
+
+// Emotion detection patterns
+const detectEmotion = (message: string): "positive" | "neutral" | "negative" | "frustrated" => {
+  const lower = message.toLowerCase();
+  
+  // Frustrated indicators
+  if (
+    lower.includes("frustrated") ||
+    lower.includes("angry") ||
+    lower.includes("annoyed") ||
+    lower.includes("!!!") ||
+    lower.includes("not working") ||
+    lower.includes("doesn't work") ||
+    lower.includes("hate") ||
+    lower.includes("terrible") ||
+    lower.includes("worst")
+  ) {
+    return "frustrated";
   }
-
-  return `You are OmniAgent, an intelligent AI assistant platform.
-
-Your purpose is to communicate with users via chat and voice, understand their needs, and perform actions.
-
-CONVERSATION FLOW:
-1. Greet the user politely (use their name if you know it)
-2. Understand the user's intent
-3. Ask follow-up questions if required
-4. Process the request step-by-step
-5. Provide a clear and final response
-6. Ask if the user needs anything else
-
-RESPONSE GUIDELINES:
-- Clear, concise, and professional
-- Easy to understand
-- Free from technical jargon unless required
-- If you know the user's name, use it naturally
-- Remember and reference their preferences
-- Never guess or invent answers
-
-MEMORY EXTRACTION:
-When the user shares personal information, acknowledge it warmly.
-Look for and remember:
-- Their name (e.g., "I'm John", "My name is Sarah")
-- Preferences (e.g., "I prefer email", "I like brief responses")
-- Context about their work or needs
-
-Always end with asking if the user needs anything else.${memorySection}`;
+  
+  // Negative indicators
+  if (
+    lower.includes("confused") ||
+    lower.includes("don't understand") ||
+    lower.includes("problem") ||
+    lower.includes("issue") ||
+    lower.includes("wrong") ||
+    lower.includes("error") ||
+    lower.includes("failed") ||
+    lower.includes("sad") ||
+    lower.includes("disappointed")
+  ) {
+    return "negative";
+  }
+  
+  // Positive indicators
+  if (
+    lower.includes("thank") ||
+    lower.includes("great") ||
+    lower.includes("awesome") ||
+    lower.includes("love") ||
+    lower.includes("excellent") ||
+    lower.includes("perfect") ||
+    lower.includes("amazing") ||
+    lower.includes("wonderful") ||
+    lower.includes("happy") ||
+    lower.includes("!")
+  ) {
+    return "positive";
+  }
+  
+  return "neutral";
 };
 
-// Extract memorable information from conversation
-const extractMemories = (userMessage: string, assistantResponse: string): Array<{type: string, key: string, value: string}> => {
-  const memories: Array<{type: string, key: string, value: string}> = [];
-  const lowerMessage = userMessage.toLowerCase();
+// Main system prompt with memory
+const createMainPrompt = (memories: string[], emotion: string, voiceMode: boolean) => {
+  const emotionGuidance = {
+    positive: "The user seems happy. Match their positive energy!",
+    neutral: "The user is in a neutral state. Be helpful and professional.",
+    negative: "The user seems concerned. Be extra helpful and reassuring.",
+    frustrated: "The user seems frustrated. Be calm, empathetic, and solution-focused. Acknowledge their frustration.",
+  };
 
-  // Extract name patterns
+  const memorySection = memories.length > 0 
+    ? `\n\nREMEMBERED ABOUT THIS USER:\n${memories.join('\n')}`
+    : '';
+
+  const voiceGuidance = voiceMode 
+    ? "\n\nVOICE MODE: Keep response under 3 sentences. Be conversational, no formatting."
+    : "";
+
+  return `You are OmniAgent, an intelligent multi-agent AI assistant.
+
+EMOTIONAL CONTEXT: ${emotionGuidance[emotion as keyof typeof emotionGuidance]}
+
+GUIDELINES:
+- Clear, concise, professional responses
+- Easy to understand, avoid jargon
+- Use the user's name if known
+- Always ask if they need anything else
+- If unsure, admit it honestly${memorySection}${voiceGuidance}`;
+};
+
+// Extract memories from message
+const extractMemories = (message: string): Array<{type: string, key: string, value: string}> => {
+  const memories: Array<{type: string, key: string, value: string}> = [];
+  
   const namePatterns = [
     /my name is (\w+)/i,
     /i'm (\w+)/i,
     /i am (\w+)/i,
     /call me (\w+)/i,
-    /this is (\w+)/i,
   ];
 
   for (const pattern of namePatterns) {
-    const match = userMessage.match(pattern);
-    if (match && match[1]) {
+    const match = message.match(pattern);
+    if (match?.[1]) {
       const name = match[1].charAt(0).toUpperCase() + match[1].slice(1).toLowerCase();
-      // Avoid common words that aren't names
-      if (!['here', 'fine', 'good', 'okay', 'interested', 'looking', 'trying', 'having'].includes(name.toLowerCase())) {
+      if (!['here', 'fine', 'good', 'okay', 'interested', 'looking', 'trying', 'having', 'just'].includes(name.toLowerCase())) {
         memories.push({ type: 'user_name', key: 'name', value: name });
       }
     }
   }
 
-  // Extract preferences
-  const preferencePatterns = [
-    { pattern: /i prefer (\w+(?:\s+\w+)?)/i, key: 'general_preference' },
+  const prefPatterns = [
+    { pattern: /i prefer (\w+(?:\s+\w+)?)/i, key: 'preference' },
     { pattern: /i like (\w+(?:\s+\w+)?)/i, key: 'likes' },
-    { pattern: /i don't like (\w+(?:\s+\w+)?)/i, key: 'dislikes' },
-    { pattern: /i need (\w+(?:\s+\w+)?)/i, key: 'needs' },
     { pattern: /i work (?:at|for|in) (\w+(?:\s+\w+)?)/i, key: 'workplace' },
   ];
 
-  for (const { pattern, key } of preferencePatterns) {
-    const match = userMessage.match(pattern);
-    if (match && match[1]) {
+  for (const { pattern, key } of prefPatterns) {
+    const match = message.match(pattern);
+    if (match?.[1]) {
       memories.push({ type: 'preference', key, value: match[1] });
     }
   }
 
-  // Extract previous request context
-  if (lowerMessage.includes('schedule') || lowerMessage.includes('meeting') || lowerMessage.includes('appointment')) {
-    memories.push({ type: 'request', key: 'scheduling_interest', value: 'User interested in scheduling' });
+  return memories;
+};
+
+// Call AI with specific prompt
+const callAI = async (apiKey: string, systemPrompt: string, messages: Array<{role: string, content: string}>, maxTokens = 300) => {
+  const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "google/gemini-2.5-flash",
+      messages: [
+        { role: "system", content: systemPrompt },
+        ...messages,
+      ],
+      temperature: 0.7,
+      max_tokens: maxTokens,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`AI call failed: ${response.status}`);
   }
 
-  return memories;
+  const data = await response.json();
+  return data.choices?.[0]?.message?.content || "";
 };
 
 serve(async (req) => {
@@ -123,14 +204,17 @@ serve(async (req) => {
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     
     if (!LOVABLE_API_KEY) {
-      console.error("LOVABLE_API_KEY is not configured");
       throw new Error("AI service is not configured");
     }
 
-    // Create Supabase client for memory operations
     const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
+    const lastMessage = messages?.[messages.length - 1]?.content || '';
+    
+    // Detect emotion
+    const emotion = detectEmotion(lastMessage);
+    console.log("Detected emotion:", emotion);
 
-    // Fetch existing memories for this session
+    // Fetch memories
     let existingMemories: string[] = [];
     if (sessionId) {
       const { data: memoryData } = await supabase
@@ -140,122 +224,95 @@ serve(async (req) => {
         .order('created_at', { ascending: false })
         .limit(10);
 
-      if (memoryData && memoryData.length > 0) {
+      if (memoryData?.length) {
         existingMemories = memoryData.map(m => {
           if (m.memory_type === 'user_name') return `User's name: ${m.memory_value}`;
-          if (m.memory_type === 'preference') return `User preference (${m.memory_key}): ${m.memory_value}`;
-          if (m.memory_type === 'request') return `Previous interest: ${m.memory_value}`;
+          if (m.memory_type === 'preference') return `Preference (${m.memory_key}): ${m.memory_value}`;
           return `${m.memory_key}: ${m.memory_value}`;
         });
       }
     }
 
-    console.log("Processing chat request:", { 
-      messageCount: messages?.length, 
-      voiceMode, 
-      intent,
-      sessionId,
-      memoriesFound: existingMemories.length
-    });
-
-    const systemPrompt = createSystemPrompt(existingMemories, voiceMode);
-
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: systemPrompt },
-          ...messages,
-        ],
-        temperature: 0.7,
-        max_tokens: voiceMode ? 150 : 500,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("AI Gateway error:", response.status, errorText);
-      
-      if (response.status === 429) {
-        return new Response(
-          JSON.stringify({ 
-            error: "I'm receiving too many requests right now. Please wait a moment and try again.",
-            errorType: "rate_limit"
-          }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ 
-            error: "The AI service needs attention. Please try again later.",
-            errorType: "payment_required"
-          }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      
-      throw new Error("AI service temporarily unavailable");
-    }
-
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content;
+    // Multi-agent collaboration for complex tasks
+    const isComplexTask = intent === "Task Execution" || lastMessage.length > 100;
+    let agentActivities: Array<{agent: string, action: string}> = [];
     
-    if (!content) {
-      console.error("No content in AI response:", data);
-      throw new Error("Invalid response from AI service");
+    let finalResponse = "";
+    let confidence: "high" | "medium" | "low" = "high";
+    let shouldEscalate = false;
+
+    if (isComplexTask && !voiceMode) {
+      // Step 1: Planner Agent
+      agentActivities.push({ agent: "planner", action: "Analyzing request and creating plan" });
+      const plan = await callAI(LOVABLE_API_KEY, PLANNER_PROMPT, messages, 150);
+      console.log("Planner output:", plan);
+
+      // Step 2: Executor Agent
+      agentActivities.push({ agent: "executor", action: "Executing the plan" });
+      const executorMessages = [...messages, { role: "assistant", content: `Plan: ${plan}` }];
+      const execution = await callAI(LOVABLE_API_KEY, EXECUTOR_PROMPT, executorMessages, 300);
+      console.log("Executor output:", execution);
+
+      // Step 3: Support Agent (emotion-aware)
+      agentActivities.push({ agent: "support", action: "Adding empathy and clarity" });
+      const supportPrompt = SUPPORT_PROMPT + `\n\nUser emotion: ${emotion}. Adjust tone accordingly.`;
+      const supportMessages = [...messages, { role: "assistant", content: execution }];
+      const supported = await callAI(LOVABLE_API_KEY, supportPrompt, supportMessages, 300);
+
+      // Step 4: Evaluator Agent
+      agentActivities.push({ agent: "evaluator", action: "Reviewing and improving response" });
+      const evalMessages = [{ role: "user", content: `Review this response:\n${supported}` }];
+      const evaluation = await callAI(LOVABLE_API_KEY, EVALUATOR_PROMPT, evalMessages, 400);
+      
+      // Parse evaluation
+      const confMatch = evaluation.match(/CONFIDENCE:\s*(HIGH|MEDIUM|LOW)/i);
+      const escMatch = evaluation.match(/ESCALATE:\s*(YES|NO)/i);
+      const respMatch = evaluation.match(/IMPROVED_RESPONSE:\s*([\s\S]*)/i);
+      
+      confidence = (confMatch?.[1]?.toLowerCase() || "medium") as "high" | "medium" | "low";
+      shouldEscalate = escMatch?.[1]?.toUpperCase() === "YES";
+      finalResponse = respMatch?.[1]?.trim() || supported;
+
+    } else {
+      // Simple request - single agent with emotion awareness
+      const mainPrompt = createMainPrompt(existingMemories, emotion, voiceMode);
+      finalResponse = await callAI(LOVABLE_API_KEY, mainPrompt, messages, voiceMode ? 100 : 400);
+      
+      // Quick confidence check for simple responses
+      if (emotion === "frustrated" || lastMessage.includes("?")) {
+        confidence = "medium";
+      }
+      if (finalResponse.includes("I'm not sure") || finalResponse.includes("I don't know")) {
+        confidence = "low";
+        shouldEscalate = true;
+      }
     }
 
-    // Extract and store new memories
-    if (sessionId && messages?.length > 0) {
-      const lastUserMessage = messages[messages.length - 1]?.content || '';
-      const newMemories = extractMemories(lastUserMessage, content);
-      
+    // Store new memories
+    if (sessionId) {
+      const newMemories = extractMemories(lastMessage);
       for (const memory of newMemories) {
-        // Upsert memory (update if exists, insert if not)
-        const { error: upsertError } = await supabase
+        await supabase
           .from('conversation_memory')
-          .upsert({
+          .insert({
             session_id: sessionId,
             memory_type: memory.type,
             memory_key: memory.key,
             memory_value: memory.value,
-          }, {
-            onConflict: 'session_id,memory_key',
-            ignoreDuplicates: false
           });
-        
-        if (upsertError) {
-          console.log("Memory storage note:", upsertError.message);
-          // Try simple insert if upsert fails
-          await supabase
-            .from('conversation_memory')
-            .insert({
-              session_id: sessionId,
-              memory_type: memory.type,
-              memory_key: memory.key,
-              memory_value: memory.value,
-            });
-        }
-      }
-      
-      if (newMemories.length > 0) {
-        console.log("Stored memories:", newMemories.map(m => `${m.key}: ${m.value}`));
       }
     }
 
-    console.log("AI response generated successfully, length:", content.length);
+    console.log("Response generated:", { confidence, shouldEscalate, emotion, agentCount: agentActivities.length });
 
     return new Response(
       JSON.stringify({ 
-        content,
-        intent: intent || "General Question"
+        content: finalResponse,
+        intent: intent || "General Question",
+        confidence,
+        emotion,
+        shouldEscalate,
+        agentActivities: agentActivities.length > 0 ? agentActivities : undefined
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
@@ -266,13 +323,10 @@ serve(async (req) => {
     const errorMessage = error instanceof Error ? error.message : "";
     const userMessage = errorMessage.includes("configured") || errorMessage.includes("unavailable")
       ? errorMessage
-      : "I apologize, but I encountered an issue processing your request. Please try again, or let me know if I can help with something else.";
+      : "I apologize, but I encountered an issue. Please try again, or let me know if I can help with something else.";
     
     return new Response(
-      JSON.stringify({ 
-        error: userMessage,
-        errorType: "general"
-      }),
+      JSON.stringify({ error: userMessage, errorType: "general" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

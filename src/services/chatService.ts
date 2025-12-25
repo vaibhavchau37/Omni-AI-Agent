@@ -10,6 +10,10 @@ interface ChatResponse {
   intent?: string;
   error?: string;
   errorType?: string;
+  confidence?: "high" | "medium" | "low";
+  emotion?: "positive" | "neutral" | "negative" | "frustrated";
+  shouldEscalate?: boolean;
+  agentActivities?: Array<{agent: string, action: string}>;
 }
 
 interface ActionResult {
@@ -20,7 +24,6 @@ interface ActionResult {
   details?: string;
 }
 
-// Generate or retrieve session ID for memory persistence
 const getSessionId = (): string => {
   const storageKey = "omniagent_session_id";
   let sessionId = localStorage.getItem(storageKey);
@@ -51,9 +54,9 @@ export const sendChatMessage = async (
     });
 
     if (error) {
-      console.error("Supabase function error:", error);
+      console.error("Function error:", error);
       return {
-        error: "I apologize, but I'm having trouble connecting right now. Please try again in a moment.",
+        error: "I apologize, but I'm having trouble connecting. Please try again.",
         errorType: "connection"
       };
     }
@@ -67,12 +70,16 @@ export const sendChatMessage = async (
 
     return {
       content: data.content,
-      intent: data.intent
+      intent: data.intent,
+      confidence: data.confidence,
+      emotion: data.emotion,
+      shouldEscalate: data.shouldEscalate,
+      agentActivities: data.agentActivities
     };
   } catch (err) {
     console.error("Chat service error:", err);
     return {
-      error: "I apologize, but something went wrong. Would you like to try again?",
+      error: "Something went wrong. Would you like to try again?",
       errorType: "general"
     };
   }
@@ -88,31 +95,27 @@ export const executeAction = async (
     });
 
     if (error) {
-      console.error("Action execution error:", error);
       return {
         success: false,
-        error: "I couldn't complete that action right now. Would you like to try something else?",
-        suggestion: "Please try again or describe what you need differently."
+        error: "Couldn't complete that action. Try something else?",
+        suggestion: "Describe your request differently."
       };
     }
 
     return data;
   } catch (err) {
-    console.error("Action service error:", err);
     return {
       success: false,
-      error: "I apologize, but I encountered an issue. Let me know how else I can help.",
-      suggestion: "Try describing your request in a different way."
+      error: "I encountered an issue. How else can I help?",
+      suggestion: "Try a different approach."
     };
   }
 };
 
-// Clear session to start fresh conversation
 export const clearSession = (): void => {
   localStorage.removeItem("omniagent_session_id");
 };
 
-// Get current session ID (for debugging/display)
 export const getCurrentSessionId = (): string | null => {
   return localStorage.getItem("omniagent_session_id");
 };
