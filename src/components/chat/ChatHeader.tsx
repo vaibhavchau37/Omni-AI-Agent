@@ -1,4 +1,4 @@
-import { Sparkles, Zap, RotateCcw, BarChart3, Lightbulb } from "lucide-react";
+import { Sparkles, Zap, RotateCcw, BarChart3, Lightbulb, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { clearSession } from "@/services/chatService";
 import { toast } from "@/hooks/use-toast";
@@ -9,13 +9,17 @@ interface ChatHeaderProps {
   onOpenAnalytics?: () => void;
   explainMode?: boolean;
   onExplainModeToggle?: () => void;
+  onSignOut?: () => void;
+  userEmail?: string;
 }
 
 export const ChatHeader = ({ 
   onClearSession, 
   onOpenAnalytics, 
   explainMode, 
-  onExplainModeToggle 
+  onExplainModeToggle,
+  onSignOut,
+  userEmail,
 }: ChatHeaderProps) => {
   const handleNewSession = () => {
     clearSession();
@@ -86,8 +90,24 @@ export const ChatHeader = ({
             <span className="hidden sm:inline">New</span>
           </Button>
 
+          {/* Sign Out */}
+          {onSignOut && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onSignOut}
+              className="text-muted-foreground hover:text-destructive gap-1.5"
+              title="Sign out"
+            >
+              <LogOut className="w-4 h-4" />
+              <span className="hidden sm:inline">Sign Out</span>
+            </Button>
+          )}
+
           <div className="px-3 py-1.5 rounded-full bg-green-500/10 border border-green-500/20">
-            <span className="text-xs font-medium text-green-400">Online</span>
+            <span className="text-xs font-medium text-green-400">
+              {userEmail ? userEmail.split('@')[0] : 'Online'}
+            </span>
           </div>
         </div>
       </div>
