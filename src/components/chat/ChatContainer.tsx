@@ -1,17 +1,27 @@
 import { useRef, useEffect } from "react";
 import { ChatMessage } from "./ChatMessage";
 import { TypingIndicator } from "./TypingIndicator";
+import { Zap, MessageSquare, Calendar, HelpCircle, Wrench, Search } from "lucide-react";
 
 interface Message {
   id: string;
   role: "user" | "assistant";
   content: string;
+  intent?: string;
 }
 
 interface ChatContainerProps {
   messages: Message[];
   isTyping: boolean;
 }
+
+const capabilities = [
+  { icon: MessageSquare, label: "Answer Questions", desc: "General inquiries" },
+  { icon: Search, label: "Find Information", desc: "Data retrieval" },
+  { icon: Wrench, label: "Execute Tasks", desc: "Workflow automation" },
+  { icon: Calendar, label: "Scheduling", desc: "Appointments" },
+  { icon: HelpCircle, label: "Support", desc: "Help & guidance" },
+];
 
 export const ChatContainer = ({ messages, isTyping }: ChatContainerProps) => {
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -24,33 +34,40 @@ export const ChatContainer = ({ messages, isTyping }: ChatContainerProps) => {
     <div className="flex-1 overflow-y-auto scrollbar-thin px-4 py-6">
       <div className="max-w-4xl mx-auto space-y-4">
         {messages.length === 0 && (
-          <div className="text-center py-12 fade-in">
-            <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center glow-primary">
-              <svg
-                className="w-10 h-10 text-primary"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1.5}
-                  d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-                />
-              </svg>
+          <div className="text-center py-8 fade-in">
+            <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/10 border border-primary/20 flex items-center justify-center glow-primary">
+              <Zap className="w-10 h-10 text-primary" />
             </div>
-            <h2 className="text-xl font-semibold text-foreground mb-2">
-              How can I help you today?
+            <h2 className="text-2xl font-semibold text-foreground mb-2">
+              Welcome to <span className="gradient-text">OmniAgent</span>
             </h2>
-            <p className="text-muted-foreground max-w-md mx-auto">
-              I'm your AI assistant. Ask me anything or use the microphone for voice input.
+            <p className="text-muted-foreground max-w-md mx-auto mb-8">
+              Your intelligent AI assistant. I can understand your intent and help with various tasks.
             </p>
+            
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3 max-w-2xl mx-auto">
+              {capabilities.map((cap, index) => (
+                <div
+                  key={cap.label}
+                  className="p-3 rounded-xl bg-secondary/50 border border-border/50 hover:border-primary/30 transition-colors cursor-pointer group"
+                  style={{ animationDelay: `${index * 0.1}s` }}
+                >
+                  <cap.icon className="w-5 h-5 text-primary mx-auto mb-2 group-hover:scale-110 transition-transform" />
+                  <p className="text-xs font-medium text-foreground">{cap.label}</p>
+                  <p className="text-[10px] text-muted-foreground">{cap.desc}</p>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
         {messages.map((message) => (
-          <ChatMessage key={message.id} role={message.role} content={message.content} />
+          <ChatMessage 
+            key={message.id} 
+            role={message.role} 
+            content={message.content}
+            intent={message.intent}
+          />
         ))}
 
         {isTyping && <TypingIndicator />}
