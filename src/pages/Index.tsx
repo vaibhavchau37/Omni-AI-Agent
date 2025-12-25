@@ -352,15 +352,6 @@ const Index = () => {
     }
   };
 
-  // Show loading while checking auth
-  if (authLoading) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-background">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
   return (
     <div className="flex flex-col h-screen bg-background">
       <ChatHeader 
@@ -368,8 +359,6 @@ const Index = () => {
         onOpenAnalytics={() => setShowAnalytics(true)}
         explainMode={explainMode}
         onExplainModeToggle={() => setExplainMode(!explainMode)}
-        onSignOut={handleSignOut}
-        userEmail={user?.email}
       />
       
       {/* Role Selector Bar */}
