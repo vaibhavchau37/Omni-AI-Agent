@@ -12,25 +12,25 @@ const quickActions: QuickAction[] = [
     id: "goal",
     icon: Target,
     label: "Plan a goal",
-    message: "Create a 5-step goal plan for improving my productivity this week. List each step with a clear action.",
+    message: "I want to plan a goal. Can you help me?",
   },
   {
     id: "schedule",
     icon: Calendar,
     label: "Schedule something",
-    message: "Schedule a meeting for tomorrow at 3 PM titled 'Team Sync'. Set a reminder 30 minutes before.",
+    message: "I need to schedule something. What details do you need from me?",
   },
   {
     id: "brainstorm",
     icon: Brain,
     label: "Brainstorm ideas",
-    message: "Give me 10 creative project ideas I can build as a developer to improve my portfolio.",
+    message: "I'd like to brainstorm some ideas. Can you ask me what topic I'm interested in?",
   },
   {
     id: "automate",
     icon: Wrench,
     label: "Automate a task",
-    message: "Create a daily morning routine checklist: wake up, exercise 30 min, review emails, plan top 3 tasks for the day.",
+    message: "I want to automate a task. What kind of task should we set up?",
   },
 ];
 
