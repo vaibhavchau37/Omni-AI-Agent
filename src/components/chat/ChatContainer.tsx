@@ -4,7 +4,6 @@ import { TypingIndicator } from "./TypingIndicator";
 import { AgentActivityLog, AgentActivity } from "./AgentActivityLog";
 import { GoalTracker } from "./GoalTracker";
 import { WelcomeScreen } from "./WelcomeScreen";
-import { DemoScenarios } from "./DemoScenarios";
 
 interface Message {
   id: string;
@@ -60,15 +59,10 @@ export const ChatContainer = ({
       <div className="max-w-3xl mx-auto space-y-4">
         {/* Welcome + Demos (only when empty) */}
         {messages.length === 0 && (
-          <>
-            <WelcomeScreen 
-              onFeatureClick={onSelectDemo} 
-              onOpenAnalytics={onOpenAnalytics}
-            />
-            {onSelectDemo && (
-              <DemoScenarios onSelectDemo={onSelectDemo} disabled={isTyping} />
-            )}
-          </>
+          <WelcomeScreen 
+            onFeatureClick={onSelectDemo} 
+            onOpenAnalytics={onOpenAnalytics}
+          />
         )}
 
         {/* Goal Tracker */}
