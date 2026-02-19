@@ -803,21 +803,30 @@ serve(async (req) => {
     }
 
     // ===========================================
-    // OPTIONAL AUTHENTICATION
+    // REQUIRED AUTHENTICATION
     // ===========================================
     const authHeader = req.headers.get('Authorization');
-    let user = null;
-    let supabaseWithAuth = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-    if (authHeader) {
-      supabaseWithAuth = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-        global: { headers: { Authorization: authHeader } }
-      });
-
-      // Try to verify JWT, but don't require it
-      const { data: { user: authUser } } = await supabaseWithAuth.auth.getUser();
-      user = authUser;
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(
+        JSON.stringify({ error: "Authentication required" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
+
+    const supabaseWithAuth = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      global: { headers: { Authorization: authHeader } }
+    });
+
+    const token = authHeader.replace('Bearer ', '');
+    const { data: claimsData, error: claimsError } = await supabaseWithAuth.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims) {
+      return new Response(
+        JSON.stringify({ error: "Invalid or expired authentication token" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const user = { id: claimsData.claims.sub };
 
     // ===========================================
     // INPUT VALIDATION
@@ -1169,15 +1178,14 @@ Write a brief, professional completion report. Tell the user what was accomplish
     const confidenceScore = calculateConfidenceScore(confidence, emotion, isGoal, totalRetries);
     const needsUserConfirmation = shouldAskUserBeforeAction(confidenceScore);
 
-    // Store data using service role
-    const supabaseService = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY!);
+    // Store data using authenticated client (respects RLS)
     const responseTime = Date.now() - startTime;
 
     if (sessionId && !isSimulation) {
       // Store new memories
       const newMemories = extractMemories(lastMessage);
       for (const memory of newMemories) {
-        await supabaseService
+        await supabaseWithAuth
           .from('conversation_memory')
           .insert({
             session_id: sessionId,
@@ -1191,7 +1199,7 @@ Write a brief, professional completion report. Tell the user what was accomplish
       const detectedPatterns = detectBehaviorPatterns(messages, lastMessage);
       for (const pattern of detectedPatterns) {
         // Check if pattern already exists
-        const { data: existingPattern } = await supabaseService
+        const { data: existingPattern } = await supabaseWithAuth
           .from('behavior_patterns')
           .select('id, occurrence_count, confidence_score')
           .eq('session_id', sessionId)
@@ -1203,7 +1211,7 @@ Write a brief, professional completion report. Tell the user what was accomplish
           // Update existing pattern
           const newCount = (existingPattern.occurrence_count || 1) + 1;
           const newConfidence = Math.min(0.95, (Number(existingPattern.confidence_score) || 0.5) + 0.1);
-          await supabaseService
+          await supabaseWithAuth
             .from('behavior_patterns')
             .update({
               occurrence_count: newCount,
@@ -1213,7 +1221,7 @@ Write a brief, professional completion report. Tell the user what was accomplish
             .eq('id', existingPattern.id);
         } else {
           // Insert new pattern
-          await supabaseService.from('behavior_patterns').insert({
+          await supabaseWithAuth.from('behavior_patterns').insert({
             session_id: sessionId,
             pattern_type: pattern.pattern_type,
             pattern_key: pattern.pattern_key,
@@ -1232,14 +1240,14 @@ Write a brief, professional completion report. Tell the user what was accomplish
           executedActions,
           responseTime
         );
-        await supabaseService.from('task_workflows').insert({
+        await supabaseWithAuth.from('task_workflows').insert({
           session_id: sessionId,
           ...taskWorkflow,
         });
       }
 
       // Log confidence score
-      await supabaseService.from('confidence_logs').insert({
+      await supabaseWithAuth.from('confidence_logs').insert({
         session_id: sessionId,
         task_type: isGoal ? 'goal_execution' : 'general_query',
         confidence_score: confidenceScore,
@@ -1249,7 +1257,7 @@ Write a brief, professional completion report. Tell the user what was accomplish
       });
 
       // Log analytics
-      await supabaseService.from('agent_analytics').insert({
+      await supabaseWithAuth.from('agent_analytics').insert({
         session_id: sessionId,
         intent: intent || "General Question",
         task_success: !shouldEscalate,
