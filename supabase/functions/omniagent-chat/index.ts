@@ -803,30 +803,37 @@ serve(async (req) => {
     }
 
     // ===========================================
-    // REQUIRED AUTHENTICATION
+    // OPTIONAL AUTHENTICATION
     // ===========================================
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return new Response(
-        JSON.stringify({ error: "Authentication required" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    let user: { id: string } | null = null;
+    let supabaseClient: ReturnType<typeof createClient>;
+
+    // Try to authenticate, but allow unauthenticated access for chat
+    if (authHeader?.startsWith('Bearer ')) {
+      const token = authHeader.replace('Bearer ', '');
+      const supabaseWithAuth = createClient(SUPABASE_URL, SUPABASE_ANON_KEY!, {
+        global: { headers: { Authorization: authHeader } }
+      });
+
+      try {
+        const { data: claimsData, error: claimsError } = await supabaseWithAuth.auth.getClaims(token);
+        if (!claimsError && claimsData?.claims?.sub) {
+          user = { id: claimsData.claims.sub };
+          supabaseClient = supabaseWithAuth;
+        } else {
+          // Token invalid — use service role for non-user-scoped operations
+          supabaseClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY!);
+        }
+      } catch {
+        supabaseClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY!);
+      }
+    } else {
+      supabaseClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY!);
     }
 
-    const supabaseWithAuth = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      global: { headers: { Authorization: authHeader } }
-    });
-
-    const token = authHeader.replace('Bearer ', '');
-    const { data: claimsData, error: claimsError } = await supabaseWithAuth.auth.getClaims(token);
-    if (claimsError || !claimsData?.claims) {
-      return new Response(
-        JSON.stringify({ error: "Invalid or expired authentication token" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const user = { id: claimsData.claims.sub };
+    // Alias for compatibility with rest of the code
+    const supabaseWithAuth = supabaseClient!;
 
     // ===========================================
     // INPUT VALIDATION
