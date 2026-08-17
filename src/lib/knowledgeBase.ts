@@ -57,6 +57,54 @@ export const knowledgeBase: KnowledgeEntry[] = [
     content: "We integrate with popular platforms including:\n• Slack\n• Microsoft Teams\n• Salesforce\n• HubSpot\n• Zapier\n• Custom APIs available for Enterprise plans",
     followUpQuestions: ["Which integration are you interested in?"],
   },
+  {
+    keywords: ["chatgpt", "openai", "gpt", "gpt-5", "gpt5"],
+    topic: "ChatGPT / OpenAI GPT",
+    content: "ChatGPT runs on OpenAI's GPT-5 family (tiers like 5.4, 5.5 and 5.6 — sol, terra, luna).\n• Strengths: general reasoning, coding, agentic tool use, deep research, voice\n• Multimodal: text + image input\n• Tiers trade cost/latency for reasoning depth (nano/mini → flagship)",
+    followUpQuestions: ["Want a comparison with Claude or Gemini for your use case?"],
+  },
+  {
+    keywords: ["claude", "anthropic", "opus", "sonnet", "haiku"],
+    topic: "Claude (Anthropic)",
+    content: "Claude comes in Opus (most capable), Sonnet (balanced) and Haiku (fast/cheap) tiers.\n• Strengths: long-context reasoning, high-quality writing, strong coding\n• Agentic: computer use, tool calling, and the MCP (Model Context Protocol) ecosystem\n• Often chosen for careful, well-structured long-form output",
+    followUpQuestions: ["Should I compare Claude with GPT-5 or Gemini?"],
+  },
+  {
+    keywords: ["gemini", "google ai", "bard", "flash"],
+    topic: "Gemini (Google)",
+    content: "Gemini ships as Pro, Flash and Flash-Lite tiers.\n• Natively multimodal: text, image, audio and video input\n• Very large context windows\n• Flash/Flash-Lite are extremely fast and cheap for high-volume tasks\n• Deep integration with Google Workspace and Android",
+    followUpQuestions: ["Do you need speed and cost, or maximum reasoning quality?"],
+  },
+  {
+    keywords: ["deepseek", "r1", "open weights", "open source model"],
+    topic: "DeepSeek",
+    content: "DeepSeek is an open-weight lab known for the V-series (general) and R-series (reasoning) models.\n• Strong math and coding at very low cost\n• Open weights → self-hosting, fine-tuning and privacy control\n• Popular as a cheap alternative to closed frontier models",
+    followUpQuestions: ["Are you optimizing for cost, or for self-hosting and privacy?"],
+  },
+  {
+    keywords: ["kimi", "moonshot", "k2"],
+    topic: "Kimi (Moonshot AI)",
+    content: "Kimi (Moonshot AI) K-series models — e.g. K2 — are open-weight and agent-focused.\n• Long context and strong tool/function calling\n• Good coding performance at low cost\n• Frequently used for high-throughput autonomous agents",
+    followUpQuestions: ["Are you building an agent that needs heavy tool calling?"],
+  },
+  {
+    keywords: ["grok", "llama", "mistral", "qwen", "perplexity", "cohere"],
+    topic: "Other AI Models",
+    content: "Beyond the big three:\n• Grok (xAI) — real-time/social data flavour\n• Llama (Meta) — widely used open weights\n• Mistral — European, efficient open-weight models\n• Qwen (Alibaba) — strong multilingual open weights\n• Perplexity — answer engine with citations\n• Cohere — enterprise RAG and search",
+    followUpQuestions: ["Which one should I dig into for you?"],
+  },
+  {
+    keywords: ["compare models", "which ai", "best ai", "model comparison", "vs"],
+    topic: "Choosing an AI Model",
+    content: "Quick guidance:\n• Hard reasoning / complex coding → frontier tier (GPT-5.x flagship, Claude Opus, Gemini Pro)\n• High volume, low latency, low cost → mini/nano/flash/haiku tiers\n• Self-hosting, privacy or tight budgets → open weights (DeepSeek, Kimi, Llama, Qwen, Mistral)\n• Long documents / video / audio → Gemini or Claude long-context tiers\nModel versions change fast, so always verify current names and pricing with the vendor.",
+    followUpQuestions: ["Tell me your task and constraints and I'll recommend one."],
+  },
+  {
+    keywords: ["mcp", "agent", "rag", "tool calling", "function calling", "vector"],
+    topic: "Modern AI Agent Stack",
+    content: "Today's agent building blocks:\n• Tool / function calling for real actions\n• MCP servers to expose apps to assistants\n• RAG over vector stores for grounded answers\n• Structured outputs + streaming for reliable UX\n• Multi-agent orchestration (planner → executor → evaluator)\n• Evaluation loops to catch low-confidence answers",
+    followUpQuestions: ["Want me to map this onto your own workflow?"],
+  },
 ];
 
 export const searchKnowledgeBase = (query: string): KnowledgeEntry | null => {

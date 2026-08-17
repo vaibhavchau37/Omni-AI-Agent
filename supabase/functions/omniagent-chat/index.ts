@@ -589,6 +589,21 @@ const selectTool = (message: string): { tool: string | null; reason: string } =>
   return { tool: null, reason: "Using general reasoning" };
 };
 
+// ===========================================
+// AI LANDSCAPE CONTEXT (frontier models & tools)
+// ===========================================
+const AI_LANDSCAPE_CONTEXT = `
+CURRENT AI LANDSCAPE (use this when the user asks about AI models, tools, or comparisons):
+- OpenAI / ChatGPT: GPT-5 family (incl. 5.4 / 5.5 / 5.6 tiers such as sol, terra, luna). Strong general reasoning, coding, agentic tool use, multimodal text+image input, deep research and voice modes.
+- Anthropic / Claude: Claude Opus, Sonnet and Haiku tiers. Known for long-context reasoning, careful writing, strong coding and agentic "computer use" / tool workflows, MCP (Model Context Protocol) ecosystem.
+- Google / Gemini: Gemini Pro, Flash and Flash-Lite tiers. Natively multimodal (text, image, audio, video), very large context windows, tight Workspace/Android integration, fast low-cost variants.
+- DeepSeek: open-weight Chinese lab. DeepSeek-V and DeepSeek-R reasoning series, famous for strong math/coding performance at very low cost and permissive open weights.
+- Moonshot AI / Kimi: Kimi K-series (e.g. K2) — open-weight, agentic and long-context oriented, strong coding and tool calling, popular for cheap high-throughput agents.
+- Others worth naming when relevant: xAI Grok, Meta Llama (open weights), Mistral (European, open weights), Alibaba Qwen, Cohere (enterprise RAG), Perplexity (answer engine).
+- Rough guidance: pick reasoning-heavy frontier models for hard analysis/coding, small "flash/mini/nano/haiku" tiers for high-volume cheap tasks, and open-weight models (DeepSeek, Kimi, Llama, Qwen, Mistral) for self-hosting, privacy or cost control.
+- Common agent building blocks today: tool/function calling, MCP servers, RAG over vector stores, structured outputs, streaming, multi-agent orchestration, and evaluation loops.
+ACCURACY RULE: model versions change fast. Describe capabilities and trade-offs confidently, but never invent benchmark numbers, prices or release dates — say your knowledge may be out of date and suggest checking the vendor's site for exact current versions.`;
+
 // Main system prompt
 const createMainPrompt = (
   memories: string[], 
@@ -630,10 +645,13 @@ TONE: ${roleConfig.tone}
 PERMISSIONS: ${roleConfig.permissions.join(", ")}
 
 EMOTIONAL CONTEXT: ${emotionGuidance[emotion as keyof typeof emotionGuidance]}
+${AI_LANDSCAPE_CONTEXT}
 
 GUIDELINES:
 - Clear, concise, professional responses
 - Easy to understand, avoid jargon
+- Use the conversation history: refer back to earlier details instead of repeating questions
+- When the topic is AI models or tools, compare concrete trade-offs (reasoning quality, speed, cost, context length, open vs closed weights)
 - Use the user's name if known
 - Always ask if they need anything else
 - If unsure, admit it honestly
@@ -1164,7 +1182,7 @@ Write a brief, professional completion report. Tell the user what was accomplish
         ? [{ role: "system" as const, content: `Previous conversation summary: ${contextSummary}` }, ...messages]
         : messages;
       
-      const result = await callAI(LOVABLE_API_KEY, mainPrompt, contextMessages, voiceMode ? 100 : 400);
+      const result = await callAI(LOVABLE_API_KEY, mainPrompt, contextMessages, voiceMode ? 120 : 700);
       finalResponse = result.content;
       totalRetries = result.retries;
       

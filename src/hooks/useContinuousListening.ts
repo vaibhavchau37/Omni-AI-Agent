@@ -69,8 +69,8 @@ export const useContinuousListening = (): UseContinuousListeningReturn => {
   const [isPaused, setIsPaused] = useState(false);
   
   const recognitionRef = useRef<InstanceType<typeof window.SpeechRecognition> | null>(null);
-  const wakeWordTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const restartTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const wakeWordTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const restartTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const langRef = useRef<SupportedLanguage>("auto");
 
   // Check for wake word in transcript
