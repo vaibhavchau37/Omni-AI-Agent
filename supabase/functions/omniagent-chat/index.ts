@@ -1182,7 +1182,7 @@ Write a brief, professional completion report. Tell the user what was accomplish
         ? [{ role: "system" as const, content: `Previous conversation summary: ${contextSummary}` }, ...messages]
         : messages;
       
-      const result = await callAI(LOVABLE_API_KEY, mainPrompt, contextMessages, voiceMode ? 100 : 400);
+      const result = await callAI(LOVABLE_API_KEY, mainPrompt, contextMessages, voiceMode ? 120 : 700);
       finalResponse = result.content;
       totalRetries = result.retries;
       
