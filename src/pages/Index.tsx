@@ -12,6 +12,8 @@ import { useTextToSpeech } from "@/hooks/useTextToSpeech";
 import { useContinuousListening } from "@/hooks/useContinuousListening";
 import { toast } from "@/hooks/use-toast";
 import { sendChatMessageStreaming, clearSession } from "@/services/chatService";
+import { generateArtifact, analyzeFiles, UploadedFile } from "@/services/artifactService";
+import { detectArtifactRequest, artifactLabel, Artifact } from "@/lib/artifacts";
 import { Button } from "@/components/ui/button";
 
 interface Message {
@@ -30,6 +32,8 @@ interface Message {
   retryCount?: number;
   timestamp: number;
   isStreaming?: boolean;
+  attachments?: UploadedFile[];
+  artifact?: Artifact;
 }
 
 type IntentType = 
@@ -160,9 +164,11 @@ const Index = () => {
     toast({ title: "Session cleared" });
   }, [stop]);
 
-  const handleSendMessage = async (content: string) => {
+  const handleSendMessage = async (content: string, attachments?: UploadedFile[]) => {
     const intent = classifyIntent(content);
-    addMessage("user", content);
+    const id = `user_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+    setMessages(prev => [...prev, { id, role: "user", content, timestamp: Date.now(), attachments }]);
+    conversationHistory.current.push({ role: "user", content });
     setIsTyping(true);
     setAgentActivities([]);
     setActiveAgents([]);
@@ -181,8 +187,61 @@ const Index = () => {
 
     let streamedContent = "";
 
+    // 1) File generation requests (PPT / Word / landing page / spreadsheet)
+    const artifactKind = detectArtifactRequest(content);
+    if (artifactKind) {
+      updateMessage(assistantId, { content: `Building your ${artifactLabel[artifactKind]}…` });
+      const { artifact, error } = await generateArtifact(
+        artifactKind,
+        content,
+        currentLanguage === "hi-IN" ? "hi" : "en"
+      );
+      if (artifact) {
+        const reply = `Here is your ${artifactLabel[artifactKind]}. Download it below${artifactKind === "landing" ? ", or preview it in a new tab" : ""}. Tell me what to change and I'll rebuild it.`;
+        updateMessage(assistantId, {
+          content: reply,
+          isStreaming: false,
+          intent: "Task Execution",
+          confidence: "high",
+          selectedTool: artifactLabel[artifactKind],
+          artifact,
+        });
+        conversationHistory.current.push({ role: "assistant", content: reply });
+      } else {
+        updateMessage(assistantId, {
+          content: error || "I couldn't build that file. Please try again.",
+          isStreaming: false,
+          confidence: "low",
+        });
+        conversationHistory.current.push({ role: "assistant", content: error || "File generation failed." });
+      }
+      setIsTyping(false);
+      setIsVoiceMode(false);
+      return;
+    }
+
+    // 2) Attached images / documents → read them first, then answer with that context
+    let historyForModel = [...conversationHistory.current];
+    if (attachments?.length) {
+      updateMessage(assistantId, { content: "Reading your file(s)…" });
+      const { summary, error } = await analyzeFiles(attachments, content);
+      if (error) {
+        updateMessage(assistantId, { content: error, isStreaming: false, confidence: "low" });
+        conversationHistory.current.push({ role: "assistant", content: error });
+        setIsTyping(false);
+        setIsVoiceMode(false);
+        return;
+      }
+      const fileContext = `[Contents extracted from the user's attached file(s): ${attachments.map(f => f.name).join(", ")}]\n${summary}`;
+      historyForModel = [
+        ...historyForModel.slice(0, -1),
+        { role: "user", content: `${fileContext}\n\nUser question: ${content}` },
+      ];
+      updateMessage(assistantId, { content: "" });
+    }
+
     await sendChatMessageStreaming(
-      [...conversationHistory.current],
+      historyForModel,
       {
         onToken: (token) => {
           streamedContent += token;
@@ -274,6 +333,19 @@ const Index = () => {
     );
   };
 
+  const handleEditMessage = useCallback((id: string, newContent: string) => {
+    setMessages(prev => {
+      const index = prev.findIndex(m => m.id === id);
+      if (index === -1) return prev;
+      const kept = prev.slice(0, index);
+      conversationHistory.current = kept
+        .filter(m => m.content)
+        .map(m => ({ role: m.role, content: m.content }));
+      return kept;
+    });
+    setTimeout(() => handleSendMessage(newContent), 0);
+  }, []);
+
   const handleVoiceToggle = () => {
     if (isListening) {
       toggleListening();
@@ -335,6 +407,7 @@ const Index = () => {
         currentGoal={currentGoal}
         onSelectDemo={handleSendMessage}
         onOpenAnalytics={() => setShowAnalytics(true)}
+        onEditMessage={handleEditMessage}
       />
       
       {/* Input Area */}
