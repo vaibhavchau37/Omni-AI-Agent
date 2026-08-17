@@ -1,6 +1,11 @@
+import { useState } from "react";
 import { cn } from "@/lib/utils";
-import { Bot, User, Tag, Volume2, Heart, Frown, Smile, Meh, Clock, Sparkles, Wrench } from "lucide-react";
+import { Bot, User, Tag, Volume2, Heart, Frown, Smile, Meh, Clock, Sparkles, Wrench, Pencil, Check, X, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { ArtifactCard } from "./ArtifactCard";
+import type { Artifact } from "@/lib/artifacts";
+import type { UploadedFile } from "@/services/artifactService";
 import { ConfidenceMeter } from "./ConfidenceMeter";
 import { EscalationBanner } from "./EscalationBanner";
 import { toast } from "@/hooks/use-toast";
@@ -21,6 +26,9 @@ interface ChatMessageProps {
   isSpeaking?: boolean;
   timestamp?: number;
   isStreaming?: boolean;
+  attachments?: UploadedFile[];
+  artifact?: Artifact;
+  onEdit?: (newContent: string) => void;
 }
 
 const intentColors: Record<string, string> = {
@@ -52,8 +60,13 @@ export const ChatMessage = ({
   isSpeaking,
   timestamp,
   isStreaming = false,
+  attachments,
+  artifact,
+  onEdit,
 }: ChatMessageProps) => {
   const isAssistant = role === "assistant";
+  const [isEditing, setIsEditing] = useState(false);
+  const [draft, setDraft] = useState(content);
   const EmotionIcon = emotion ? emotionConfig[emotion].icon : null;
   const displayTime = timestamp ? format(new Date(timestamp), "h:mm a") : format(new Date(), "h:mm a");
 
@@ -62,6 +75,17 @@ export const ChatMessage = ({
       title: "Escalation Requested",
       description: "A human support agent will be connected shortly.",
     });
+  };
+
+  const startEdit = () => {
+    setDraft(content);
+    setIsEditing(true);
+  };
+
+  const saveEdit = () => {
+    const next = draft.trim();
+    setIsEditing(false);
+    if (next && next !== content) onEdit?.(next);
   };
 
   return (
@@ -133,6 +157,31 @@ export const ChatMessage = ({
               : "bg-gradient-to-br from-primary to-primary/80 text-primary-foreground rounded-tr-sm shadow-primary/20"
           )}
         >
+          {isEditing ? (
+            <div className="space-y-2 min-w-[240px]">
+              <Textarea
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    saveEdit();
+                  }
+                  if (e.key === "Escape") setIsEditing(false);
+                }}
+                autoFocus
+                className="min-h-[70px] text-sm bg-background text-foreground"
+              />
+              <div className="flex gap-2 justify-end">
+                <Button size="sm" variant="ghost" className="h-7 text-xs gap-1" onClick={() => setIsEditing(false)}>
+                  <X className="w-3 h-3" /> Cancel
+                </Button>
+                <Button size="sm" className="h-7 text-xs gap-1" onClick={saveEdit}>
+                  <Check className="w-3 h-3" /> Save &amp; resend
+                </Button>
+              </div>
+            </div>
+          ) : (
           <p className={cn(
             "whitespace-pre-wrap",
             isAssistant ? "text-foreground" : "text-primary-foreground"
@@ -142,6 +191,26 @@ export const ChatMessage = ({
               <span className="inline-block w-2 h-4 ml-1 bg-primary/70 animate-pulse rounded-sm" />
             )}
           </p>
+          )}
+
+          {/* Attachments */}
+          {!!attachments?.length && !isEditing && (
+            <div className="flex flex-wrap gap-2 mt-3">
+              {attachments.map((f, i) => (
+                <div key={`${f.name}_${i}`} className="flex items-center gap-2 px-2 py-1 rounded-lg bg-background/20 border border-border/30 max-w-[200px]">
+                  {f.mimeType.startsWith("image/") ? (
+                    <img src={f.dataUrl} alt={f.name} className="w-8 h-8 rounded object-cover" />
+                  ) : (
+                    <FileText className="w-4 h-4 shrink-0" />
+                  )}
+                  <span className="text-[11px] truncate">{f.name}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Generated file */}
+          {isAssistant && artifact && <ArtifactCard artifact={artifact} />}
 
           {/* Reasoning section */}
           {isAssistant && reasoning && (
@@ -179,6 +248,18 @@ export const ChatMessage = ({
             onEscalate={handleEscalate}
             reason="My confidence is low on this topic."
           />
+        )}
+
+        {/* Edit action for user messages */}
+        {!isAssistant && onEdit && !isEditing && (
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={startEdit}
+            className="h-7 px-2 text-xs gap-1.5 text-muted-foreground opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
+          >
+            <Pencil className="w-3 h-3" /> Edit
+          </Button>
         )}
       </div>
 
