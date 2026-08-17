@@ -4,6 +4,8 @@ import { TypingIndicator } from "./TypingIndicator";
 import { AgentActivityLog, AgentActivity } from "./AgentActivityLog";
 import { GoalTracker } from "./GoalTracker";
 import { WelcomeScreen } from "./WelcomeScreen";
+import type { Artifact } from "@/lib/artifacts";
+import type { UploadedFile } from "@/services/artifactService";
 
 interface Message {
   id: string;
@@ -19,6 +21,8 @@ interface Message {
   retryCount?: number;
   timestamp: number;
   isStreaming?: boolean;
+  attachments?: UploadedFile[];
+  artifact?: Artifact;
 }
 
 interface ChatContainerProps {
@@ -36,6 +40,7 @@ interface ChatContainerProps {
   } | null;
   onSelectDemo?: (message: string) => void;
   onOpenAnalytics?: () => void;
+  onEditMessage?: (id: string, newContent: string) => void;
 }
 
 export const ChatContainer = ({ 
@@ -46,7 +51,8 @@ export const ChatContainer = ({
   speakingMessageId,
   currentGoal,
   onSelectDemo,
-  onOpenAnalytics
+  onOpenAnalytics,
+  onEditMessage
 }: ChatContainerProps) => {
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -93,6 +99,9 @@ export const ChatContainer = ({
             retryCount={message.retryCount}
             timestamp={message.timestamp}
             isStreaming={message.isStreaming}
+            attachments={message.attachments}
+            artifact={message.artifact}
+            onEdit={message.role === "user" && onEditMessage ? (next) => onEditMessage(message.id, next) : undefined}
             onSpeak={message.role === "assistant" && onSpeak && !message.isStreaming ? () => onSpeak(message.content) : undefined}
             isSpeaking={speakingMessageId === message.id}
           />
