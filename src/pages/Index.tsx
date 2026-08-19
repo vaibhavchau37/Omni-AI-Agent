@@ -15,6 +15,7 @@ import { sendChatMessageStreaming, clearSession } from "@/services/chatService";
 import { generateArtifact, analyzeFiles, UploadedFile } from "@/services/artifactService";
 import { detectArtifactRequest, artifactLabel, Artifact } from "@/lib/artifacts";
 import { Button } from "@/components/ui/button";
+import { ROLE_META } from "@/lib/roles";
 
 interface Message {
   id: string;
@@ -60,7 +61,10 @@ const Index = () => {
   const [isVoiceMode, setIsVoiceMode] = useState(false);
   const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
   const [agentActivities, setAgentActivities] = useState<AgentActivity[]>([]);
-  const [agentRole, setAgentRole] = useState<AgentRole>("default");
+  const [agentRole, setAgentRole] = useState<AgentRole>(() => {
+    const saved = typeof window !== "undefined" ? localStorage.getItem("omniagent_role") : null;
+    return saved && saved in ROLE_META ? (saved as AgentRole) : "default";
+  });
   const [isSimulation, setIsSimulation] = useState(false);
   const [showAnalytics, setShowAnalytics] = useState(false);
   
@@ -163,6 +167,13 @@ const Index = () => {
     setSpeakingMessageId(null);
     toast({ title: "Session cleared" });
   }, [stop]);
+
+  const handleRoleChange = useCallback((role: AgentRole) => {
+    setAgentRole(role);
+    localStorage.setItem("omniagent_role", role);
+    const meta = ROLE_META[role];
+    toast({ title: `${meta.title} mode`, description: meta.tagline });
+  }, []);
 
   const handleSendMessage = async (content: string, attachments?: UploadedFile[]) => {
     const intent = classifyIntent(content);
@@ -376,7 +387,7 @@ const Index = () => {
       {/* Control Bar */}
       <ControlBar
         agentRole={agentRole}
-        onRoleChange={setAgentRole}
+        onRoleChange={handleRoleChange}
         isSimulation={isSimulation}
         onSimulationToggle={() => setIsSimulation(!isSimulation)}
         currentLanguage={currentLanguage}
@@ -408,6 +419,7 @@ const Index = () => {
         onSelectDemo={handleSendMessage}
         onOpenAnalytics={() => setShowAnalytics(true)}
         onEditMessage={handleEditMessage}
+        agentRole={agentRole}
       />
       
       {/* Input Area */}
