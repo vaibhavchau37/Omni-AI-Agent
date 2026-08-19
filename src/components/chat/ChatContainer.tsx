@@ -6,6 +6,7 @@ import { GoalTracker } from "./GoalTracker";
 import { WelcomeScreen } from "./WelcomeScreen";
 import type { Artifact } from "@/lib/artifacts";
 import type { UploadedFile } from "@/services/artifactService";
+import type { AgentRoleId } from "@/lib/roles";
 
 interface Message {
   id: string;
@@ -41,6 +42,7 @@ interface ChatContainerProps {
   onSelectDemo?: (message: string) => void;
   onOpenAnalytics?: () => void;
   onEditMessage?: (id: string, newContent: string) => void;
+  agentRole?: AgentRoleId;
 }
 
 export const ChatContainer = ({ 
@@ -52,7 +54,8 @@ export const ChatContainer = ({
   currentGoal,
   onSelectDemo,
   onOpenAnalytics,
-  onEditMessage
+  onEditMessage,
+  agentRole = "default"
 }: ChatContainerProps) => {
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -68,6 +71,7 @@ export const ChatContainer = ({
           <WelcomeScreen 
             onFeatureClick={onSelectDemo} 
             onOpenAnalytics={onOpenAnalytics}
+            role={agentRole}
           />
         )}
 

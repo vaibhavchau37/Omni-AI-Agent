@@ -1,4 +1,5 @@
-import { User, GraduationCap, Briefcase, HeadphonesIcon, Shield, FlaskConical, Globe, MicOff, Radio } from "lucide-react";
+import { FlaskConical, Globe, MicOff, Radio } from "lucide-react";
+import { ROLE_LIST, type AgentRoleId } from "@/lib/roles";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,7 +14,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-export type AgentRole = "default" | "student_assistant" | "hr_assistant" | "customer_support" | "admin_agent";
+export type AgentRole = AgentRoleId;
 
 interface ControlBarProps {
   agentRole: AgentRole;
@@ -32,13 +33,7 @@ interface ControlBarProps {
   };
 }
 
-const roles = [
-  { id: "default" as const, icon: User, label: "General" },
-  { id: "student_assistant" as const, icon: GraduationCap, label: "Student" },
-  { id: "hr_assistant" as const, icon: Briefcase, label: "HR" },
-  { id: "customer_support" as const, icon: HeadphonesIcon, label: "Support" },
-  { id: "admin_agent" as const, icon: Shield, label: "Admin" },
-];
+const roles = ROLE_LIST;
 
 const languages = [
   { code: "auto" as const, label: "Auto", flag: "🌐" },
@@ -68,19 +63,24 @@ export const ControlBar = ({
             const isActive = agentRole === role.id;
             
             return (
-              <button
-                key={role.id}
-                onClick={() => onRoleChange(role.id)}
-                className={cn(
-                  "flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all",
-                  isActive 
-                    ? "bg-primary text-primary-foreground shadow-sm" 
-                    : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
-                )}
-              >
-                <Icon className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">{role.label}</span>
-              </button>
+              <Tooltip key={role.id}>
+                <TooltipTrigger asChild>
+                  <button
+                    aria-pressed={isActive}
+                    onClick={() => onRoleChange(role.id)}
+                    className={cn(
+                      "flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all",
+                      isActive
+                        ? "bg-primary text-primary-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
+                    )}
+                  >
+                    <Icon className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">{role.label}</span>
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>{role.title} — {role.tagline}</TooltipContent>
+              </Tooltip>
             );
           })}
         </div>
