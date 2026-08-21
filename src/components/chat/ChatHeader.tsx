@@ -65,6 +65,27 @@ export const ChatHeader = ({
               <Button
                 variant="ghost"
                 size="sm"
+                onClick={onOpenHistory}
+                className="h-8 px-2.5 gap-1.5 text-xs rounded-lg"
+              >
+                <History className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">History</span>
+                {historyCount > 0 && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">
+                    {historyCount}
+                  </span>
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Previous chats</TooltipContent>
+          </Tooltip>
+
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={onExplainModeToggle}
                 className={cn(
                   "h-8 px-2.5 gap-1.5 text-xs rounded-lg",
