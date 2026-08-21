@@ -169,16 +169,47 @@ const Index = () => {
     }
   }, [messages, speakingMessageId, speak, stop]);
 
+  // Auto-save the current conversation to local history
+  useEffect(() => {
+    if (isTyping) return;
+    const persistable = messages.filter((m) => m.content.trim() && !m.isStreaming);
+    if (persistable.length === 0) return;
+    saveSession(sessionKey, persistable, agentRole);
+    setHistoryCount(listSessions().length);
+  }, [messages, isTyping, sessionKey, agentRole]);
+
   const handleClearSession = useCallback(() => {
     setMessages([]);
     conversationHistory.current = [];
     setAgentActivities([]);
     setCurrentGoal(null);
+    setActiveAgents([]);
+    setAgentMessages([]);
+    setSessionKey(newSessionId());
     clearSession();
     stop();
     setSpeakingMessageId(null);
-    toast({ title: "Session cleared" });
+    setHistoryCount(listSessions().length);
+    toast({ title: "New chat started", description: "Your previous chat is saved in History." });
   }, [stop]);
+
+  const handleSelectSession = useCallback((session: ChatSession) => {
+    stop();
+    setSpeakingMessageId(null);
+    setAgentActivities([]);
+    setCurrentGoal(null);
+    setActiveAgents([]);
+    setAgentMessages([]);
+    setSessionKey(session.id);
+    setMessages(session.messages as Message[]);
+    conversationHistory.current = session.messages.map((m) => ({ role: m.role, content: m.content }));
+    if (session.role && session.role in ROLE_META) {
+      setAgentRole(session.role as AgentRole);
+      localStorage.setItem("omniagent_role", session.role);
+    }
+    toast({ title: "Chat restored", description: session.title });
+  }, [stop]);
+
 
   const handleRoleChange = useCallback((role: AgentRole) => {
     setAgentRole(role);
