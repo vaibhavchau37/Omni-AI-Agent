@@ -16,6 +16,14 @@ import { generateArtifact, analyzeFiles, UploadedFile } from "@/services/artifac
 import { detectArtifactRequest, artifactLabel, Artifact } from "@/lib/artifacts";
 import { Button } from "@/components/ui/button";
 import { ROLE_META } from "@/lib/roles";
+import { ChatHistoryPanel } from "@/components/chat/ChatHistoryPanel";
+import {
+  ChatSession,
+  saveSession,
+  listSessions,
+  newSessionId,
+} from "@/lib/chatHistory";
+
 
 interface Message {
   id: string;
@@ -67,6 +75,10 @@ const Index = () => {
   });
   const [isSimulation, setIsSimulation] = useState(false);
   const [showAnalytics, setShowAnalytics] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [sessionKey, setSessionKey] = useState<string>(() => newSessionId());
+  const [historyCount, setHistoryCount] = useState<number>(() => listSessions().length);
+
   
   const [currentGoal, setCurrentGoal] = useState<{ goal: string; steps: string[]; currentStep: number; executedActions?: Array<{step: number, action: string, status: string, result: string}>; isAutonomous?: boolean } | null>(null);
   const [explainMode, setExplainMode] = useState(false);
@@ -157,16 +169,47 @@ const Index = () => {
     }
   }, [messages, speakingMessageId, speak, stop]);
 
+  // Auto-save the current conversation to local history
+  useEffect(() => {
+    if (isTyping) return;
+    const persistable = messages.filter((m) => m.content.trim() && !m.isStreaming);
+    if (persistable.length === 0) return;
+    saveSession(sessionKey, persistable, agentRole);
+    setHistoryCount(listSessions().length);
+  }, [messages, isTyping, sessionKey, agentRole]);
+
   const handleClearSession = useCallback(() => {
     setMessages([]);
     conversationHistory.current = [];
     setAgentActivities([]);
     setCurrentGoal(null);
+    setActiveAgents([]);
+    setAgentMessages([]);
+    setSessionKey(newSessionId());
     clearSession();
     stop();
     setSpeakingMessageId(null);
-    toast({ title: "Session cleared" });
+    setHistoryCount(listSessions().length);
+    toast({ title: "New chat started", description: "Your previous chat is saved in History." });
   }, [stop]);
+
+  const handleSelectSession = useCallback((session: ChatSession) => {
+    stop();
+    setSpeakingMessageId(null);
+    setAgentActivities([]);
+    setCurrentGoal(null);
+    setActiveAgents([]);
+    setAgentMessages([]);
+    setSessionKey(session.id);
+    setMessages(session.messages as Message[]);
+    conversationHistory.current = session.messages.map((m) => ({ role: m.role, content: m.content }));
+    if (session.role && session.role in ROLE_META) {
+      setAgentRole(session.role as AgentRole);
+      localStorage.setItem("omniagent_role", session.role);
+    }
+    toast({ title: "Chat restored", description: session.title });
+  }, [stop]);
+
 
   const handleRoleChange = useCallback((role: AgentRole) => {
     setAgentRole(role);
@@ -382,7 +425,18 @@ const Index = () => {
         onOpenAnalytics={() => setShowAnalytics(true)}
         explainMode={explainMode}
         onExplainModeToggle={() => setExplainMode(!explainMode)}
+        onOpenHistory={() => setShowHistory(true)}
+        historyCount={historyCount}
       />
+
+      <ChatHistoryPanel
+        isOpen={showHistory}
+        onClose={() => setShowHistory(false)}
+        activeSessionId={sessionKey}
+        onSelect={handleSelectSession}
+        onNewChat={handleClearSession}
+      />
+
       
       {/* Control Bar */}
       <ControlBar
