@@ -16,6 +16,14 @@ import { generateArtifact, analyzeFiles, UploadedFile } from "@/services/artifac
 import { detectArtifactRequest, artifactLabel, Artifact } from "@/lib/artifacts";
 import { Button } from "@/components/ui/button";
 import { ROLE_META } from "@/lib/roles";
+import { ChatHistoryPanel } from "@/components/chat/ChatHistoryPanel";
+import {
+  ChatSession,
+  saveSession,
+  listSessions,
+  newSessionId,
+} from "@/lib/chatHistory";
+
 
 interface Message {
   id: string;
