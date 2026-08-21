@@ -425,7 +425,18 @@ const Index = () => {
         onOpenAnalytics={() => setShowAnalytics(true)}
         explainMode={explainMode}
         onExplainModeToggle={() => setExplainMode(!explainMode)}
+        onOpenHistory={() => setShowHistory(true)}
+        historyCount={historyCount}
       />
+
+      <ChatHistoryPanel
+        isOpen={showHistory}
+        onClose={() => setShowHistory(false)}
+        activeSessionId={sessionKey}
+        onSelect={handleSelectSession}
+        onNewChat={handleClearSession}
+      />
+
       
       {/* Control Bar */}
       <ControlBar
