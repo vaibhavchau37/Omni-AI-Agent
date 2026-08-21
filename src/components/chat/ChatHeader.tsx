@@ -1,4 +1,4 @@
-import { Sparkles, Zap, RotateCcw, BarChart3, Lightbulb } from "lucide-react";
+import { Sparkles, Zap, RotateCcw, BarChart3, Lightbulb, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { clearSession } from "@/services/chatService";
 import { toast } from "@/hooks/use-toast";
@@ -14,6 +14,8 @@ interface ChatHeaderProps {
   onOpenAnalytics?: () => void;
   explainMode?: boolean;
   onExplainModeToggle?: () => void;
+  onOpenHistory?: () => void;
+  historyCount?: number;
 }
 
 export const ChatHeader = ({ 
@@ -21,7 +23,10 @@ export const ChatHeader = ({
   onOpenAnalytics, 
   explainMode, 
   onExplainModeToggle,
+  onOpenHistory,
+  historyCount = 0,
 }: ChatHeaderProps) => {
+
   const handleNewSession = () => {
     clearSession();
     if (onClearSession) {
