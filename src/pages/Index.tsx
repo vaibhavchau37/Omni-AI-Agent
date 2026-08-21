@@ -75,6 +75,10 @@ const Index = () => {
   });
   const [isSimulation, setIsSimulation] = useState(false);
   const [showAnalytics, setShowAnalytics] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [sessionKey, setSessionKey] = useState<string>(() => newSessionId());
+  const [historyCount, setHistoryCount] = useState<number>(() => listSessions().length);
+
   
   const [currentGoal, setCurrentGoal] = useState<{ goal: string; steps: string[]; currentStep: number; executedActions?: Array<{step: number, action: string, status: string, result: string}>; isAutonomous?: boolean } | null>(null);
   const [explainMode, setExplainMode] = useState(false);
