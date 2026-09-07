@@ -1,4 +1,16 @@
-import { Sparkles, ArrowRight } from "lucide-react";
+import {
+  Sparkles,
+  ArrowRight,
+  Presentation,
+  FileText,
+  Table2,
+  LayoutTemplate,
+  ImagePlus,
+  Mic,
+  Pencil,
+  History,
+  MessageSquareQuote,
+} from "lucide-react";
 import { ROLE_META, type AgentRoleId } from "@/lib/roles";
 
 interface WelcomeScreenProps {
@@ -7,12 +19,27 @@ interface WelcomeScreenProps {
   role?: AgentRoleId;
 }
 
+const CAPABILITIES = [
+  { icon: Presentation, label: "Slide decks", hint: "Say “make a PPT on solar energy”" },
+  { icon: FileText, label: "Word documents", hint: "Letters, notes, policies, SOPs" },
+  { icon: Table2, label: "Spreadsheets", hint: "Budgets, trackers, reports" },
+  { icon: LayoutTemplate, label: "Landing pages", hint: "A ready page for your idea" },
+  { icon: ImagePlus, label: "Photos & files", hint: "Attach with the clip button" },
+  { icon: Mic, label: "Talk to it", hint: "Speak instead of typing" },
+];
+
+const HOW_IT_WORKS = [
+  { icon: Pencil, text: "Edit any message you sent and the answer is redone" },
+  { icon: History, text: "History keeps every past chat on this device" },
+  { icon: MessageSquareQuote, text: "Switch modes above for study, HR, support or admin help" },
+];
+
 export const WelcomeScreen = ({ onFeatureClick, role = "default" }: WelcomeScreenProps) => {
   const meta = ROLE_META[role] ?? ROLE_META.default;
   const RoleIcon = meta.icon;
 
   return (
-    <div className="text-center py-12 fade-in">
+    <div className="text-center py-10 fade-in">
       {/* Hero */}
       <div className="relative inline-block mb-5">
         <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/10 border border-primary/20 flex items-center justify-center glow-primary">
@@ -30,9 +57,14 @@ export const WelcomeScreen = ({ onFeatureClick, role = "default" }: WelcomeScree
           <><span className="gradient-text">{meta.title}</span> mode</>
         )}
       </h2>
-      <p className="text-sm text-muted-foreground mb-8 max-w-sm mx-auto">{meta.tagline}</p>
+      <p className="text-sm text-muted-foreground mb-2 max-w-sm mx-auto">{meta.tagline}</p>
+      <p className="text-xs text-muted-foreground/70 mb-8 max-w-md mx-auto">
+        Ask in plain English or Hindi. It asks a question or two, then does the work — and hands
+        you a real file when one is needed.
+      </p>
 
       {/* Quick Actions */}
+      <p className="text-[11px] uppercase tracking-wide text-muted-foreground/60 mb-2">Start here</p>
       <div className="grid grid-cols-2 gap-2 max-w-md mx-auto px-4">
         {meta.quickActions.map((action) => (
           <button
@@ -48,6 +80,37 @@ export const WelcomeScreen = ({ onFeatureClick, role = "default" }: WelcomeScree
           </button>
         ))}
       </div>
+
+      {/* What it can do */}
+      <p className="text-[11px] uppercase tracking-wide text-muted-foreground/60 mt-8 mb-2">
+        What it can make for you
+      </p>
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-w-md mx-auto px-4">
+        {CAPABILITIES.map(({ icon: Icon, label, hint }) => (
+          <div
+            key={label}
+            className="p-3 rounded-xl bg-card/40 border border-border/40 text-left"
+          >
+            <Icon className="w-4 h-4 text-accent mb-1.5" />
+            <p className="text-xs font-medium text-foreground/85">{label}</p>
+            <p className="text-[10px] text-muted-foreground/70 leading-snug mt-0.5">{hint}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* How it works */}
+      <div className="max-w-md mx-auto px-4 mt-6 space-y-1.5">
+        {HOW_IT_WORKS.map(({ icon: Icon, text }) => (
+          <div key={text} className="flex items-center gap-2 text-left">
+            <Icon className="w-3.5 h-3.5 text-muted-foreground/60 shrink-0" />
+            <span className="text-[11px] text-muted-foreground/80">{text}</span>
+          </div>
+        ))}
+      </div>
+
+      <p className="text-[10px] text-muted-foreground/50 mt-6 max-w-sm mx-auto">
+        If something isn’t known for sure, OmniAgent says so instead of guessing.
+      </p>
     </div>
   );
 };
