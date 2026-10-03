@@ -66,7 +66,7 @@ export const WelcomeScreen = ({ onFeatureClick, role = "default" }: WelcomeScree
   const RoleIcon = meta.icon;
 
   return (
-    <div className="text-center py-10 fade-in">
+    <div className="text-center py-6 sm:py-10 fade-in warm-surface rounded-3xl">
       {/* Hero */}
       <div className="relative inline-block mb-5">
         <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/10 border border-primary/20 flex items-center justify-center glow-primary">
@@ -77,7 +77,7 @@ export const WelcomeScreen = ({ onFeatureClick, role = "default" }: WelcomeScree
         </div>
       </div>
 
-      <h2 className="text-xl font-bold text-foreground mb-1">
+      <h2 className="font-display text-2xl sm:text-3xl font-bold text-foreground mb-1">
         {role === "default" ? (
           <>Welcome to <span className="gradient-text">{meta.title}</span></>
         ) : (
@@ -92,7 +92,7 @@ export const WelcomeScreen = ({ onFeatureClick, role = "default" }: WelcomeScree
 
       {/* Quick Actions */}
       <p className="text-[11px] uppercase tracking-wide text-muted-foreground/60 mb-2">Start here</p>
-      <div className="grid grid-cols-2 gap-2 max-w-md mx-auto px-4">
+      <div className="grid grid-cols-2 gap-2 max-w-xl mx-auto px-2 sm:px-4">
         {meta.quickActions.map((action) => (
           <button
             key={action.id}
@@ -112,7 +112,7 @@ export const WelcomeScreen = ({ onFeatureClick, role = "default" }: WelcomeScree
       <p className="text-[11px] uppercase tracking-wide text-muted-foreground/60 mt-8 mb-2">
         Guided processes
       </p>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 max-w-md mx-auto px-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 max-w-xl mx-auto px-2 sm:px-4">
         {WORKFLOWS.map(({ icon: Icon, label, outcome, message }) => (
           <button
             key={label}
@@ -130,7 +130,7 @@ export const WelcomeScreen = ({ onFeatureClick, role = "default" }: WelcomeScree
       <p className="text-[11px] uppercase tracking-wide text-muted-foreground/60 mt-8 mb-2">
         What it can make for you
       </p>
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-w-md mx-auto px-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-w-xl mx-auto px-2 sm:px-4">
         {CAPABILITIES.map(({ icon: Icon, label, hint }) => (
           <div
             key={label}
@@ -144,7 +144,7 @@ export const WelcomeScreen = ({ onFeatureClick, role = "default" }: WelcomeScree
       </div>
 
       {/* How it works */}
-      <div className="max-w-md mx-auto px-4 mt-6 space-y-1.5">
+      <div className="max-w-xl mx-auto px-2 sm:px-4 mt-6 space-y-1.5">
         {HOW_IT_WORKS.map(({ icon: Icon, text }) => (
           <div key={text} className="flex items-center gap-2 text-left">
             <Icon className="w-3.5 h-3.5 text-muted-foreground/60 shrink-0" />

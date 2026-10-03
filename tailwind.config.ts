@@ -14,7 +14,8 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ['Plus Jakarta Sans', 'system-ui', 'sans-serif'],
+        sans: ['Mukta', 'system-ui', 'sans-serif'],
+        display: ['"Baloo 2"', 'Mukta', 'sans-serif'],
         mono: ['JetBrains Mono', 'monospace'],
       },
       colors: {

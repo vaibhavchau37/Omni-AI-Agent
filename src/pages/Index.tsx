@@ -477,7 +477,7 @@ const Index = () => {
       />
       
       {/* Input Area */}
-      <div className="border-t border-border/30 p-4 bg-background">
+      <div className="border-t border-border/30 p-2.5 sm:p-4 bg-background/95 backdrop-blur pb-[max(0.625rem,env(safe-area-inset-bottom))]">
         <div className="max-w-3xl mx-auto">
           <ChatInput
             onSend={handleSendMessage}
