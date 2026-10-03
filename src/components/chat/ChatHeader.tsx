@@ -39,7 +39,8 @@ export const ChatHeader = ({
   };
 
   return (
-    <header className="border-b border-border/40 px-4 py-3 bg-card/50 backdrop-blur-sm">
+    <header className="relative border-b border-border/40 px-3 sm:px-4 py-2.5 sm:py-3 bg-card/60 backdrop-blur-md">
+      <div className="absolute inset-x-0 bottom-0 h-px warm-rule opacity-60" />
       <div className="max-w-4xl mx-auto flex items-center justify-between">
         {/* Brand */}
         <div className="flex items-center gap-3">
@@ -54,12 +55,12 @@ export const ChatHeader = ({
               OmniAgent
               <Sparkles className="w-3.5 h-3.5 text-primary/70" />
             </h1>
-            <p className="text-[10px] text-muted-foreground">Multi-Agent AI</p>
+            <p className="text-[10px] text-muted-foreground">Your everyday AI · हिंदी & English</p>
           </div>
         </div>
 
         {/* Actions */}
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-0.5 sm:gap-1">
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -129,7 +130,7 @@ export const ChatHeader = ({
             <TooltipContent>Start fresh</TooltipContent>
           </Tooltip>
 
-          <div className="ml-1 px-2 py-1 rounded-full bg-success/10 border border-success/20">
+          <div className="hidden sm:block ml-1 px-2 py-1 rounded-full bg-success/10 border border-success/20">
             <span className="text-[10px] font-medium text-success flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-success" />
               Online

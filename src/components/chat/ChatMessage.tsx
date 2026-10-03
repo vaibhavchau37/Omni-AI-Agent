@@ -89,12 +89,12 @@ export const ChatMessage = ({
   };
 
   return (
-    <div className={cn("flex gap-3 fade-in group", isAssistant ? "justify-start" : "justify-end")}>
+    <div className={cn("flex gap-2 sm:gap-3 fade-in group", isAssistant ? "justify-start" : "justify-end")}>
       {/* Assistant Avatar */}
       {isAssistant && (
         <div className="flex-shrink-0">
           <div className="relative">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/10 border border-primary/20 flex items-center justify-center shadow-lg shadow-primary/5">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/10 border border-primary/20 flex items-center justify-center shadow-lg shadow-primary/5">
               <Bot className="w-5 h-5 text-primary" />
             </div>
             <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-success rounded-full border-2 border-background" />
@@ -151,9 +151,9 @@ export const ChatMessage = ({
         {/* Message Bubble */}
         <div
           className={cn(
-            "relative px-4 py-3 rounded-2xl text-sm leading-relaxed shadow-md transition-all",
+            "relative px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-2xl text-[15px] sm:text-sm leading-relaxed shadow-md transition-all",
             isAssistant
-              ? "bg-card border border-border/50 rounded-tl-sm"
+              ? "bg-card/90 border border-border/50 border-l-2 border-l-accent/60 rounded-tl-sm"
               : "bg-gradient-to-br from-primary to-primary/80 text-primary-foreground rounded-tr-sm shadow-primary/20"
           )}
         >
@@ -266,7 +266,7 @@ export const ChatMessage = ({
       {/* User Avatar */}
       {!isAssistant && (
         <div className="flex-shrink-0">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-secondary to-secondary/60 border border-border/50 flex items-center justify-center shadow-md">
+          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-br from-secondary to-secondary/60 border border-border/50 flex items-center justify-center shadow-md">
             <User className="w-5 h-5 text-foreground/70" />
           </div>
         </div>

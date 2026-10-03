@@ -54,10 +54,10 @@ export const ControlBar = ({
   const currentLang = languages.find(l => l.code === currentLanguage) || languages[0];
 
   return (
-    <div className="border-b border-border/30 px-4 py-2">
+    <div className="border-b border-border/30 px-3 sm:px-4 py-2">
       <div className="max-w-4xl mx-auto flex items-center justify-between gap-3">
         {/* Role Pills */}
-        <div className="flex items-center gap-1 p-0.5 rounded-lg bg-secondary/40 border border-border/40">
+        <div className="flex items-center gap-1 p-0.5 rounded-full bg-secondary/50 border border-border/40 overflow-x-auto scrollbar-none min-w-0">
           {roles.map((role) => {
             const Icon = role.icon;
             const isActive = agentRole === role.id;
@@ -69,7 +69,7 @@ export const ControlBar = ({
                     aria-pressed={isActive}
                     onClick={() => onRoleChange(role.id)}
                     className={cn(
-                      "flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all",
+                      "flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full text-xs font-medium transition-all shrink-0",
                       isActive
                         ? "bg-primary text-primary-foreground shadow-sm"
                         : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
@@ -86,7 +86,7 @@ export const ControlBar = ({
         </div>
         
         {/* Right Controls */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
           {/* Sandbox Toggle */}
           <Tooltip>
             <TooltipTrigger asChild>
@@ -118,7 +118,7 @@ export const ControlBar = ({
                 disabled={isListening}
               >
                 <Globe className="w-3.5 h-3.5" />
-                <span>{currentLang.flag}</span>
+                <span>{currentLang.label}</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="min-w-[120px] bg-popover border border-border z-50">
@@ -131,7 +131,7 @@ export const ControlBar = ({
                     currentLanguage === lang.code && "bg-primary/10"
                   )}
                 >
-                  <span>{lang.flag}</span>
+                  
                   <span>{lang.label}</span>
                 </DropdownMenuItem>
               ))}
