@@ -555,57 +555,30 @@ const detectEmotion = (message: string): "positive" | "neutral" | "negative" | "
 
 // Detect if message is a goal
 const detectGoal = (message: string): { isGoal: boolean; goalDescription: string | null; isAutonomous: boolean } => {
-  const lower = message.toLowerCase();
-  
+  const none = { isGoal: false, goalDescription: null, isAutonomous: false };
+  const text = message.trim();
+  // Long, structured prompts (guided processes, pasted content) and questions are normal conversations.
+  if (text.length > 220 || /guided .* process|step 1/i.test(text) || /\?\s*$/.test(text)) return none;
+
   const hindiGoalPatterns = [
-    /मुझे (.*) में मदद करो/i,
-    /मुझे (.*) करना है/i,
-    /मैं (.*) चाहता हूं/i,
-    /मैं (.*) चाहती हूं/i,
-    /(.*) की तैयारी करो/i,
-    /(.*) कर दो/i,
-    /(.*) करें/i,
+    /^मुझे (.+) में मदद करो/i,
+    /^मुझे (.+) करना है/i,
   ];
-  
+
   const englishGoalPatterns = [
-    /help me (?:to )?(.*)/i,
-    /i want to (.*)/i,
-    /i need to (.*)/i,
-    /prepare (?:me )?for (.*)/i,
-    /teach me (.*)/i,
-    /guide me (?:to|through) (.*)/i,
-    /show me how to (.*)/i,
-    /can you (.*) for me/i,
-    /please (.*)/i,
-    /make me (.*)/i,
-    /create (.*)/i,
-    /set up (.*)/i,
-    /organize (.*)/i,
-    /plan (.*)/i,
+    /^help me (?:to )?(plan|organi[sz]e|prepare|schedule) (.+)/i,
+    /^prepare (?:me )?for (.+)/i,
+    /^(?:please )?(?:schedule|book|remind me to|set up|organi[sz]e) (.+)/i,
+    /^plan (?:my|a|an|the) (.+)/i,
   ];
 
-  for (const pattern of hindiGoalPatterns) {
-    const match = message.match(pattern);
-    if (match?.[1]) {
-      return { isGoal: true, goalDescription: match[1].trim(), isAutonomous: true };
-    }
+  for (const pattern of [...hindiGoalPatterns, ...englishGoalPatterns]) {
+    const match = text.match(pattern);
+    const desc = match?.[match.length - 1];
+    if (desc) return { isGoal: true, goalDescription: desc.trim(), isAutonomous: true };
   }
 
-  for (const pattern of englishGoalPatterns) {
-    const match = message.match(pattern);
-    if (match?.[1]) {
-      return { isGoal: true, goalDescription: match[1].trim(), isAutonomous: true };
-    }
-  }
-
-  const imperativeIndicators = ["schedule", "book", "send", "create", "find", "search", "set", "organize", "prepare", "remind"];
-  for (const indicator of imperativeIndicators) {
-    if (lower.startsWith(indicator) || lower.includes(`please ${indicator}`)) {
-      return { isGoal: true, goalDescription: message, isAutonomous: true };
-    }
-  }
-
-  return { isGoal: false, goalDescription: null, isAutonomous: false };
+  return none;
 };
 
 // Select appropriate tool
