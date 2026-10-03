@@ -118,7 +118,7 @@ export const ControlBar = ({
                 disabled={isListening}
               >
                 <Globe className="w-3.5 h-3.5" />
-                <span>{currentLang.flag}</span>
+                <span>{currentLang.label}</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="min-w-[120px] bg-popover border border-border z-50">
@@ -131,7 +131,7 @@ export const ControlBar = ({
                     currentLanguage === lang.code && "bg-primary/10"
                   )}
                 >
-                  <span>{lang.flag}</span>
+                  
                   <span>{lang.label}</span>
                 </DropdownMenuItem>
               ))}
