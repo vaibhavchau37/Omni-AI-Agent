@@ -10,6 +10,9 @@ import {
   Pencil,
   History,
   MessageSquareQuote,
+  ClipboardList,
+  Bug,
+  Scale,
 } from "lucide-react";
 import { ROLE_META, type AgentRoleId } from "@/lib/roles";
 
@@ -32,6 +35,30 @@ const HOW_IT_WORKS = [
   { icon: Pencil, text: "Edit any message you sent and the answer is redone" },
   { icon: History, text: "History keeps every past chat on this device" },
   { icon: MessageSquareQuote, text: "Switch modes above for study, HR, support or admin help" },
+];
+
+const WORKFLOWS = [
+  {
+    icon: ClipboardList,
+    label: "Plan & build",
+    outcome: "Spec → plan → tasks → result",
+    message:
+      "Use the guided Plan & Build process. Step 1 (Spec): ask me what I want to build and why, who it is for, and what success looks like — one question at a time. Step 2 (Plan): propose a simple plan. Step 3 (Tasks): break it into a numbered checklist. Step 4 (Build): produce the first deliverable. Step 5 (Review): check it against the spec and list what is still missing. Start with Step 1.",
+  },
+  {
+    icon: Bug,
+    label: "Fix a problem",
+    outcome: "Cause → scoped fix → verify",
+    message:
+      "Use the guided Fix a Problem process. Step 1 (Describe): ask what is going wrong, what should happen instead, and when it started. Step 2 (Diagnose): list the most likely causes, most likely first. Step 3 (Fix): give the smallest safe fix, step by step. Step 4 (Verify): tell me exactly how to confirm it is fixed and what to do if it is not. Start with Step 1.",
+  },
+  {
+    icon: Scale,
+    label: "Assess an idea",
+    outcome: "Go, clarify, or stop decision",
+    message:
+      "Use the guided Idea Assessment process. Step 1: ask me to describe the idea, target users and budget. Step 2: evaluate problem, demand, competition (especially in India), cost and risks — say clearly when you lack real data instead of guessing. Step 3: give a clear verdict of GO, CLARIFY, or STOP with reasons and the next 3 actions. Start with Step 1.",
+  },
 ];
 
 export const WelcomeScreen = ({ onFeatureClick, role = "default" }: WelcomeScreenProps) => {
@@ -77,6 +104,24 @@ export const WelcomeScreen = ({ onFeatureClick, role = "default" }: WelcomeScree
             </div>
             <span className="text-sm text-foreground/80 group-hover:text-foreground transition-colors flex-1">{action.label}</span>
             <ArrowRight className="w-3 h-3 text-muted-foreground/40 group-hover:text-primary transition-colors" />
+          </button>
+        ))}
+      </div>
+
+      {/* Guided processes */}
+      <p className="text-[11px] uppercase tracking-wide text-muted-foreground/60 mt-8 mb-2">
+        Guided processes
+      </p>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 max-w-md mx-auto px-4">
+        {WORKFLOWS.map(({ icon: Icon, label, outcome, message }) => (
+          <button
+            key={label}
+            onClick={() => onFeatureClick?.(message)}
+            className="p-3 rounded-xl bg-card/60 border border-border/50 hover:border-primary/40 hover:bg-card/90 transition-all text-left"
+          >
+            <Icon className="w-4 h-4 text-primary mb-1.5" />
+            <p className="text-xs font-medium text-foreground/90">{label}</p>
+            <p className="text-[10px] text-muted-foreground/70 leading-snug mt-0.5">{outcome}</p>
           </button>
         ))}
       </div>
