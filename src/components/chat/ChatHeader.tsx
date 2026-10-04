@@ -16,6 +16,7 @@ interface ChatHeaderProps {
   onExplainModeToggle?: () => void;
   onOpenHistory?: () => void;
   historyCount?: number;
+  accountSlot?: React.ReactNode;
 }
 
 export const ChatHeader = ({ 
@@ -25,6 +26,7 @@ export const ChatHeader = ({
   onExplainModeToggle,
   onOpenHistory,
   historyCount = 0,
+  accountSlot,
 }: ChatHeaderProps) => {
 
   const handleNewSession = () => {
@@ -136,6 +138,7 @@ export const ChatHeader = ({
               Online
             </span>
           </div>
+          {accountSlot}
         </div>
       </div>
     </header>
