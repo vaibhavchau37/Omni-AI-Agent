@@ -17,6 +17,9 @@ import { detectArtifactRequest, artifactLabel, Artifact } from "@/lib/artifacts"
 import { Button } from "@/components/ui/button";
 import { ROLE_META } from "@/lib/roles";
 import { ChatHistoryPanel } from "@/components/chat/ChatHistoryPanel";
+import { SettingsDialog, SettingsTab } from "@/components/chat/SettingsDialog";
+import { AccountMenu } from "@/components/chat/AccountMenu";
+import { AppSettings, loadSettings, saveSettings, applyTextSize } from "@/lib/settings";
 import {
   ChatSession,
   saveSession,
@@ -81,7 +84,20 @@ const Index = () => {
 
   
   const [currentGoal, setCurrentGoal] = useState<{ goal: string; steps: string[]; currentStep: number; executedActions?: Array<{step: number, action: string, status: string, result: string}>; isAutonomous?: boolean } | null>(null);
-  const [explainMode, setExplainMode] = useState(false);
+  const [settings, setSettings] = useState<AppSettings>(() => loadSettings());
+  const settingsRef = useRef(settings);
+  settingsRef.current = settings;
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<SettingsTab>("general");
+  const explainMode = settings.showReasoning;
+  const updateSettings = useCallback((next: AppSettings) => {
+    setSettings(next);
+    saveSettings(next);
+  }, []);
+  const openSettings = useCallback((tab: SettingsTab) => {
+    setSettingsTab(tab);
+    setSettingsOpen(true);
+  }, []);
   const [activeAgents, setActiveAgents] = useState<AgentDefinition["id"][]>([]);
   const [agentMessages, setAgentMessages] = useState<AgentMessage[]>([]);
   
@@ -116,6 +132,24 @@ const Index = () => {
       resetTranscript();
     }
   }, [isListening, transcript]);
+
+  useEffect(() => { applyTextSize(settings.textSize); }, [settings.textSize]);
+
+  useEffect(() => {
+    setLanguage(settings.language);
+    setPreferredLanguage(settings.language === "hi-IN" ? "hi" : settings.language === "en-US" ? "en" : "auto");
+  }, [settings.language]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === ",") {
+        e.preventDefault();
+        openSettings("general");
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [openSettings]);
 
   useEffect(() => {
     if (!isSpeaking) setSpeakingMessageId(null);
@@ -187,6 +221,11 @@ const Index = () => {
     setAgentMessages([]);
     setSessionKey(newSessionId());
     clearSession();
+    const def = settingsRef.current.defaultRole;
+    if (def in ROLE_META) {
+      setAgentRole(def);
+      localStorage.setItem("omniagent_role", def);
+    }
     stop();
     setSpeakingMessageId(null);
     setHistoryCount(listSessions().length);
@@ -354,7 +393,7 @@ const Index = () => {
           }
 
           // Voice mode
-          if (isVoiceMode && streamedContent) {
+          if ((isVoiceMode || settingsRef.current.autoSpeak) && streamedContent) {
             setSpeakingMessageId(assistantId);
             speak(streamedContent);
           }
@@ -413,8 +452,7 @@ const Index = () => {
   };
 
   const handleLanguageChange = (lang: "en-US" | "hi-IN" | "auto") => {
-    setLanguage(lang);
-    setPreferredLanguage(lang === "hi-IN" ? "hi" : lang === "en-US" ? "en" : "auto");
+    updateSettings({ ...settingsRef.current, language: lang });
   };
 
   return (
@@ -424,9 +462,27 @@ const Index = () => {
         onClearSession={handleClearSession} 
         onOpenAnalytics={() => setShowAnalytics(true)}
         explainMode={explainMode}
-        onExplainModeToggle={() => setExplainMode(!explainMode)}
+        onExplainModeToggle={() => updateSettings({ ...settings, showReasoning: !explainMode })}
         onOpenHistory={() => setShowHistory(true)}
         historyCount={historyCount}
+        accountSlot={
+          <AccountMenu
+            name={settings.displayName}
+            language={settings.language}
+            onLanguage={handleLanguageChange}
+            onOpenSettings={openSettings}
+            onGetHelp={() => handleSendMessage("How do I use OmniAgent? Give me a short guide to its main features, modes and buttons.")}
+          />
+        }
+      />
+
+      <SettingsDialog
+        open={settingsOpen}
+        onOpenChange={setSettingsOpen}
+        settings={settings}
+        onChange={updateSettings}
+        onHistoryCleared={() => setHistoryCount(listSessions().length)}
+        initialTab={settingsTab}
       />
 
       <ChatHistoryPanel
