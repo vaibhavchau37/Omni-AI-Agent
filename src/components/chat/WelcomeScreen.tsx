@@ -85,31 +85,31 @@ export const WelcomeScreen = ({ onFeatureClick, role = "default" }: WelcomeScree
         )}
       </h2>
       <p className="text-sm text-muted-foreground mb-2 max-w-sm mx-auto">{meta.tagline}</p>
-      <p className="text-xs text-muted-foreground/70 mb-8 max-w-md mx-auto">
+      <p className="text-xs text-muted-foreground mb-8 max-w-md mx-auto">
         Ask in plain English or Hindi. It asks a question or two, then does the work — and hands
         you a real file when one is needed.
       </p>
 
       {/* Quick Actions */}
-      <p className="text-[11px] uppercase tracking-wide text-muted-foreground/60 mb-2">Start here</p>
+      <p className="text-[11px] uppercase tracking-wide text-muted-foreground/90 mb-2">Start here</p>
       <div className="grid grid-cols-2 gap-2 max-w-xl mx-auto px-2 sm:px-4">
-        {meta.quickActions.map((action) => (
+        {meta.quickActions.map((action) => { const ActionIcon = action.icon ?? RoleIcon; return (
           <button
             key={action.id}
             onClick={() => onFeatureClick?.(action.message)}
             className="flex items-center gap-2.5 p-3 rounded-xl bg-card/60 border border-border/50 hover:border-primary/40 hover:bg-card/90 transition-all duration-200 text-left group"
           >
             <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0 group-hover:bg-primary/20 transition-colors">
-              <RoleIcon className="w-4 h-4 text-primary" />
+              <ActionIcon className="w-4 h-4 text-primary" />
             </div>
             <span className="text-sm text-foreground/80 group-hover:text-foreground transition-colors flex-1">{action.label}</span>
             <ArrowRight className="w-3 h-3 text-muted-foreground/40 group-hover:text-primary transition-colors" />
           </button>
-        ))}
+        ); })}
       </div>
 
       {/* Guided processes */}
-      <p className="text-[11px] uppercase tracking-wide text-muted-foreground/60 mt-8 mb-2">
+      <p className="text-[11px] uppercase tracking-wide text-muted-foreground/90 mt-8 mb-2">
         Guided processes
       </p>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 max-w-xl mx-auto px-2 sm:px-4">
@@ -121,13 +121,13 @@ export const WelcomeScreen = ({ onFeatureClick, role = "default" }: WelcomeScree
           >
             <Icon className="w-4 h-4 text-primary mb-1.5" />
             <p className="text-xs font-medium text-foreground/90">{label}</p>
-            <p className="text-[10px] text-muted-foreground/70 leading-snug mt-0.5">{outcome}</p>
+            <p className="text-[10px] text-muted-foreground leading-snug mt-0.5">{outcome}</p>
           </button>
         ))}
       </div>
 
       {/* What it can do */}
-      <p className="text-[11px] uppercase tracking-wide text-muted-foreground/60 mt-8 mb-2">
+      <p className="text-[11px] uppercase tracking-wide text-muted-foreground/90 mt-8 mb-2">
         What it can make for you
       </p>
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-w-xl mx-auto px-2 sm:px-4">
@@ -138,7 +138,7 @@ export const WelcomeScreen = ({ onFeatureClick, role = "default" }: WelcomeScree
           >
             <Icon className="w-4 h-4 text-accent mb-1.5" />
             <p className="text-xs font-medium text-foreground/85">{label}</p>
-            <p className="text-[10px] text-muted-foreground/70 leading-snug mt-0.5">{hint}</p>
+            <p className="text-[10px] text-muted-foreground leading-snug mt-0.5">{hint}</p>
           </div>
         ))}
       </div>
@@ -147,13 +147,13 @@ export const WelcomeScreen = ({ onFeatureClick, role = "default" }: WelcomeScree
       <div className="max-w-xl mx-auto px-2 sm:px-4 mt-6 space-y-1.5">
         {HOW_IT_WORKS.map(({ icon: Icon, text }) => (
           <div key={text} className="flex items-center gap-2 text-left">
-            <Icon className="w-3.5 h-3.5 text-muted-foreground/60 shrink-0" />
-            <span className="text-[11px] text-muted-foreground/80">{text}</span>
+            <Icon className="w-3.5 h-3.5 text-muted-foreground/90 shrink-0" />
+            <span className="text-[11px] text-foreground/75">{text}</span>
           </div>
         ))}
       </div>
 
-      <p className="text-[10px] text-muted-foreground/50 mt-6 max-w-sm mx-auto">
+      <p className="text-[10px] text-muted-foreground/80 mt-6 max-w-sm mx-auto">
         If something isn’t known for sure, OmniAgent says so instead of guessing.
       </p>
     </div>

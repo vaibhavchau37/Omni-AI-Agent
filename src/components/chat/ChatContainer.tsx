@@ -65,7 +65,7 @@ export const ChatContainer = ({
   }, [messages, isTyping, agentActivities]);
 
   return (
-    <div className="flex-1 overflow-y-auto scrollbar-thin px-4 py-4">
+    <div className="flex-1 overflow-y-auto scrollbar-thin px-4 pt-4 pb-36">
       <div className="max-w-3xl mx-auto space-y-4">
         {/* Welcome + Demos (only when empty) */}
         {messages.length === 0 && (
