@@ -14,8 +14,6 @@ interface ChatHeaderProps {
   onOpenAnalytics?: () => void;
   explainMode?: boolean;
   onExplainModeToggle?: () => void;
-  onOpenHistory?: () => void;
-  historyCount?: number;
   accountSlot?: React.ReactNode;
   sidebarOpen?: boolean;
   onToggleSidebar?: () => void;
@@ -26,8 +24,6 @@ export const ChatHeader = ({
   onOpenAnalytics, 
   explainMode, 
   onExplainModeToggle,
-  onOpenHistory,
-  historyCount = 0,
   accountSlot,
   sidebarOpen = true,
   onToggleSidebar,
@@ -55,11 +51,13 @@ export const ChatHeader = ({
               <Button
                 variant="ghost"
                 size="icon"
-                aria-label={sidebarOpen ? "Close chat sidebar" : "Open chat sidebar"}
+                aria-label="Toggle chats sidebar"
                 onClick={onToggleSidebar}
                 className="h-8 w-8 shrink-0"
               >
-                {sidebarOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeft className="h-4 w-4" />}
+                <PanelLeft className="h-4 w-4 md:hidden" />
+                <PanelLeftClose className={cn("hidden h-4 w-4 md:block", !sidebarOpen && "md:hidden")} />
+                <PanelLeft className={cn("hidden h-4 w-4 md:block", sidebarOpen && "md:hidden")} />
               </Button>
             </TooltipTrigger>
             <TooltipContent>Chats and settings</TooltipContent>

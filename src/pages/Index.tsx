@@ -16,7 +16,6 @@ import { generateArtifact, analyzeFiles, UploadedFile } from "@/services/artifac
 import { detectArtifactRequest, artifactLabel, Artifact } from "@/lib/artifacts";
 import { Button } from "@/components/ui/button";
 import { ROLE_META } from "@/lib/roles";
-import { ChatHistoryPanel } from "@/components/chat/ChatHistoryPanel";
 import { SettingsDialog, SettingsTab } from "@/components/chat/SettingsDialog";
 import { AccountMenu } from "@/components/chat/AccountMenu";
 import { ChatSidebar } from "@/components/chat/ChatSidebar";
@@ -79,7 +78,6 @@ const Index = () => {
   });
   const [isSimulation, setIsSimulation] = useState(false);
   const [showAnalytics, setShowAnalytics] = useState(false);
-  const [showHistory, setShowHistory] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [sessionKey, setSessionKey] = useState<string>(() => newSessionId());
@@ -485,8 +483,6 @@ const Index = () => {
         onOpenAnalytics={() => setShowAnalytics(true)}
         explainMode={explainMode}
         onExplainModeToggle={() => updateSettings({ ...settings, showReasoning: !explainMode })}
-        onOpenHistory={() => setShowHistory(true)}
-        historyCount={historyCount}
         accountSlot={
           <AccountMenu
             name={settings.displayName}
@@ -507,15 +503,6 @@ const Index = () => {
         initialTab={settingsTab}
       />
 
-      <ChatHistoryPanel
-        isOpen={showHistory}
-        onClose={() => setShowHistory(false)}
-        activeSessionId={sessionKey}
-        onSelect={handleSelectSession}
-        onNewChat={handleClearSession}
-      />
-
-      
       {/* Control Bar */}
       <ControlBar
         agentRole={agentRole}
