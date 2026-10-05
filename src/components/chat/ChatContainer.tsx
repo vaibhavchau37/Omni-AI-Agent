@@ -43,6 +43,7 @@ interface ChatContainerProps {
   onOpenAnalytics?: () => void;
   onEditMessage?: (id: string, newContent: string) => void;
   agentRole?: AgentRoleId;
+  displayName?: string;
 }
 
 export const ChatContainer = ({ 
@@ -55,7 +56,8 @@ export const ChatContainer = ({
   onSelectDemo,
   onOpenAnalytics,
   onEditMessage,
-  agentRole = "default"
+  agentRole = "default",
+  displayName = "",
 }: ChatContainerProps) => {
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -73,6 +75,7 @@ export const ChatContainer = ({
             onFeatureClick={onSelectDemo} 
             onOpenAnalytics={onOpenAnalytics}
             role={agentRole}
+            displayName={displayName}
           />
         )}
 

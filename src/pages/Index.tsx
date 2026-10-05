@@ -19,6 +19,7 @@ import { ROLE_META } from "@/lib/roles";
 import { ChatHistoryPanel } from "@/components/chat/ChatHistoryPanel";
 import { SettingsDialog, SettingsTab } from "@/components/chat/SettingsDialog";
 import { AccountMenu } from "@/components/chat/AccountMenu";
+import { ChatSidebar } from "@/components/chat/ChatSidebar";
 import { AppSettings, loadSettings, saveSettings, applyTextSize } from "@/lib/settings";
 import {
   ChatSession,
@@ -79,6 +80,8 @@ const Index = () => {
   const [isSimulation, setIsSimulation] = useState(false);
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [sessionKey, setSessionKey] = useState<string>(() => newSessionId());
   const [historyCount, setHistoryCount] = useState<number>(() => listSessions().length);
 
@@ -456,9 +459,28 @@ const Index = () => {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-background">
+    <div className="flex h-screen overflow-hidden bg-background">
+      <ChatSidebar
+        desktopOpen={sidebarOpen}
+        mobileOpen={mobileSidebarOpen}
+        onMobileClose={() => setMobileSidebarOpen(false)}
+        activeSessionId={sessionKey}
+        historyVersion={historyCount}
+        onSelect={handleSelectSession}
+        onNewChat={handleClearSession}
+        onOpenSettings={() => openSettings("general")}
+      />
+      <div className="flex min-w-0 flex-1 flex-col">
       {/* Header */}
       <ChatHeader 
+        sidebarOpen={sidebarOpen}
+        onToggleSidebar={() => {
+          if (window.matchMedia("(min-width: 768px)").matches) {
+            setSidebarOpen((open) => !open);
+          } else {
+            setMobileSidebarOpen(true);
+          }
+        }}
         onClearSession={handleClearSession} 
         onOpenAnalytics={() => setShowAnalytics(true)}
         explainMode={explainMode}
@@ -530,6 +552,7 @@ const Index = () => {
         onOpenAnalytics={() => setShowAnalytics(true)}
         onEditMessage={handleEditMessage}
         agentRole={agentRole}
+        displayName={settings.displayName}
       />
       
       {/* Input Area */}
@@ -545,6 +568,7 @@ const Index = () => {
       </div>
       
       <AnalyticsDashboard isOpen={showAnalytics} onClose={() => setShowAnalytics(false)} />
+      </div>
     </div>
   );
 };
