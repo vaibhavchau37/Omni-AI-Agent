@@ -82,6 +82,7 @@ const Index = () => {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [sessionKey, setSessionKey] = useState<string>(() => newSessionId());
   const [historyCount, setHistoryCount] = useState<number>(() => listSessions().length);
+  const [historyRevision, setHistoryRevision] = useState(0);
 
   
   const [currentGoal, setCurrentGoal] = useState<{ goal: string; steps: string[]; currentStep: number; executedActions?: Array<{step: number, action: string, status: string, result: string}>; isAutonomous?: boolean } | null>(null);
@@ -211,6 +212,7 @@ const Index = () => {
     if (persistable.length === 0) return;
     saveSession(sessionKey, persistable, agentRole);
     setHistoryCount(listSessions().length);
+    setHistoryRevision((revision) => revision + 1);
   }, [messages, isTyping, sessionKey, agentRole]);
 
   const handleClearSession = useCallback(() => {
@@ -463,7 +465,7 @@ const Index = () => {
         mobileOpen={mobileSidebarOpen}
         onMobileClose={() => setMobileSidebarOpen(false)}
         activeSessionId={sessionKey}
-        historyVersion={historyCount}
+        historyVersion={historyRevision}
         onSelect={handleSelectSession}
         onNewChat={handleClearSession}
         onOpenSettings={() => openSettings("general")}

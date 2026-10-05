@@ -1,4 +1,4 @@
-import { Sparkles, Zap, RotateCcw, BarChart3, Lightbulb, PanelLeft, PanelLeftClose } from "lucide-react";
+import { Sparkles, Zap, RotateCcw, BarChart3, Lightbulb, PanelLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { clearSession } from "@/services/chatService";
 import { toast } from "@/hooks/use-toast";
@@ -55,9 +55,7 @@ export const ChatHeader = ({
                 onClick={onToggleSidebar}
                 className="h-8 w-8 shrink-0"
               >
-                <PanelLeft className="h-4 w-4 md:hidden" />
-                <PanelLeftClose className={cn("hidden h-4 w-4 md:block", !sidebarOpen && "md:hidden")} />
-                <PanelLeft className={cn("hidden h-4 w-4 md:block", sidebarOpen && "md:hidden")} />
+                <PanelLeft className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
             <TooltipContent>Chats and settings</TooltipContent>
