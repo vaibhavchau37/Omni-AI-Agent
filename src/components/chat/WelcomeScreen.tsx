@@ -20,6 +20,7 @@ interface WelcomeScreenProps {
   onFeatureClick?: (action: string) => void;
   onOpenAnalytics?: () => void;
   role?: AgentRoleId;
+  displayName?: string;
 }
 
 const CAPABILITIES = [
@@ -61,9 +62,10 @@ const WORKFLOWS = [
   },
 ];
 
-export const WelcomeScreen = ({ onFeatureClick, role = "default" }: WelcomeScreenProps) => {
+export const WelcomeScreen = ({ onFeatureClick, role = "default", displayName = "" }: WelcomeScreenProps) => {
   const meta = ROLE_META[role] ?? ROLE_META.default;
   const RoleIcon = meta.icon;
+  const name = displayName.trim();
 
   return (
     <div className="text-center py-6 sm:py-10 fade-in warm-surface rounded-3xl">
@@ -79,7 +81,11 @@ export const WelcomeScreen = ({ onFeatureClick, role = "default" }: WelcomeScree
 
       <h2 className="font-display text-2xl sm:text-3xl font-bold text-foreground mb-1">
         {role === "default" ? (
-          <>Welcome to <span className="gradient-text">{meta.title}</span></>
+          name ? (
+            <>Welcome back, <span className="gradient-text">{name}</span></>
+          ) : (
+            <>Welcome to <span className="gradient-text">{meta.title}</span></>
+          )
         ) : (
           <><span className="gradient-text">{meta.title}</span> mode</>
         )}

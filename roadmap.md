@@ -1,0 +1,3 @@
+- [ ] Add a responsive chat sidebar with usable saved-chat actions and a settings shortcut.
+- [ ] Show the saved display name in the welcome greeting.
+- [ ] Verify desktop and mobile navigation, settings, and build status.

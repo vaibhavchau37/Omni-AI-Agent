@@ -1,4 +1,4 @@
-import { Sparkles, Zap, RotateCcw, BarChart3, Lightbulb, History } from "lucide-react";
+import { Sparkles, Zap, RotateCcw, BarChart3, Lightbulb, PanelLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { clearSession } from "@/services/chatService";
 import { toast } from "@/hooks/use-toast";
@@ -14,9 +14,9 @@ interface ChatHeaderProps {
   onOpenAnalytics?: () => void;
   explainMode?: boolean;
   onExplainModeToggle?: () => void;
-  onOpenHistory?: () => void;
-  historyCount?: number;
   accountSlot?: React.ReactNode;
+  sidebarOpen?: boolean;
+  onToggleSidebar?: () => void;
 }
 
 export const ChatHeader = ({ 
@@ -24,9 +24,9 @@ export const ChatHeader = ({
   onOpenAnalytics, 
   explainMode, 
   onExplainModeToggle,
-  onOpenHistory,
-  historyCount = 0,
   accountSlot,
+  sidebarOpen = true,
+  onToggleSidebar,
 }: ChatHeaderProps) => {
 
   const handleNewSession = () => {
@@ -43,9 +43,23 @@ export const ChatHeader = ({
   return (
     <header className="relative border-b border-border/40 px-3 sm:px-4 py-2.5 sm:py-3 bg-card/60 backdrop-blur-md">
       <div className="absolute inset-x-0 bottom-0 h-px warm-rule opacity-60" />
-      <div className="max-w-4xl mx-auto flex items-center justify-between">
+      <div className="mx-auto flex w-full max-w-4xl items-center justify-between gap-2">
         {/* Brand */}
         <div className="flex items-center gap-3">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Toggle chats sidebar"
+                onClick={onToggleSidebar}
+                className="h-8 w-8 shrink-0"
+              >
+                <PanelLeft className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Chats and settings</TooltipContent>
+          </Tooltip>
           <div className="relative">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary/25 to-accent/15 border border-primary/20 flex items-center justify-center">
               <Zap className="w-4 h-4 text-primary" />
@@ -63,27 +77,6 @@ export const ChatHeader = ({
 
         {/* Actions */}
         <div className="flex items-center gap-0.5 sm:gap-1">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={onOpenHistory}
-                className="h-8 px-2.5 gap-1.5 text-xs rounded-lg"
-              >
-                <History className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">History</span>
-                {historyCount > 0 && (
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">
-                    {historyCount}
-                  </span>
-                )}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Previous chats</TooltipContent>
-          </Tooltip>
-
-
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
