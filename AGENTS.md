@@ -1,0 +1,1 @@
+- Keep chat-history navigation in a dedicated responsive `ChatSidebar`, with desktop navigation and a mobile sheet, so navigation stays separate from the conversation workspace.
