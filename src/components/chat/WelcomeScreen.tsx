@@ -80,17 +80,17 @@ export const WelcomeScreen = ({ onFeatureClick, role = "default", displayName = 
       </div>
 
       <h2 className="font-display text-2xl sm:text-3xl font-bold text-foreground mb-1">
-        {role === "default" ? (
-          name ? (
-            <>Welcome back, <span className="gradient-text">{name}</span></>
-          ) : (
-            <>Welcome to <span className="gradient-text">{meta.title}</span></>
-          )
+        {name ? (
+          <>Welcome back, <span className="gradient-text">{name}</span></>
+        ) : role === "default" ? (
+          <>Welcome to <span className="gradient-text">{meta.title}</span></>
         ) : (
           <><span className="gradient-text">{meta.title}</span> mode</>
         )}
       </h2>
-      <p className="text-sm text-muted-foreground mb-2 max-w-sm mx-auto">{meta.tagline}</p>
+      <p className="text-sm text-muted-foreground mb-2 max-w-sm mx-auto">
+        {name && role !== "default" ? `${meta.title} mode · ${meta.tagline}` : meta.tagline}
+      </p>
       <p className="text-xs text-muted-foreground mb-8 max-w-md mx-auto">
         Ask in plain English or Hindi. It asks a question or two, then does the work — and hands
         you a real file when one is needed.
