@@ -1,3 +1,2 @@
-- [x] Add a responsive chat sidebar with usable saved-chat actions and a settings shortcut.
-- [x] Show the saved display name in the welcome greeting.
-- [x] Verify desktop and mobile navigation, settings, and build status.
+- [ ] Adapt the existing chat page, controls, and dedicated history sidebar for desktop, tablet, iOS, and Android.
+- [ ] Verify page fit, navigation, and composer visibility at phone, tablet, and desktop sizes.
