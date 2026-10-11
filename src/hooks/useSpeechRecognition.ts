@@ -127,14 +127,6 @@ export const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
     
     initRecognition(recognitionLang);
     
-    toast({
-      title: lang === "hi-IN" ? "हिंदी मोड सक्रिय" : lang === "en-US" ? "English Mode Active" : "Auto-Detect Mode",
-      description: lang === "auto" 
-        ? "बोलें हिंदी या English / Speak in Hindi or English" 
-        : lang === "hi-IN" 
-          ? "हिंदी में बोलें" 
-          : "Speak in English",
-    });
   }, [initRecognition]);
 
   const startListening = useCallback(() => {
