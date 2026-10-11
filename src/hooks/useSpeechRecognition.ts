@@ -11,7 +11,7 @@ interface UseSpeechRecognitionReturn {
   stopListening: () => void;
   toggleListening: () => void;
   resetTranscript: () => void;
-  setLanguage: (lang: SupportedLanguage) => void;
+  setLanguage: (lang: SupportedLanguage, notify?: boolean) => void;
   currentLanguage: SupportedLanguage;
 }
 
@@ -113,7 +113,7 @@ export const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
     initRecognition("en-US");
   }, []);
 
-  const setLanguage = useCallback((lang: SupportedLanguage) => {
+  const setLanguage = useCallback((lang: SupportedLanguage, notify = true) => {
     setCurrentLanguage(lang);
     languageRef.current = lang;
     
@@ -126,6 +126,8 @@ export const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
     }
     
     initRecognition(recognitionLang);
+
+    if (!notify) return;
     
   }, [initRecognition]);
 

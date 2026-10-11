@@ -67,9 +67,10 @@ export const ControlBar = ({
                 <TooltipTrigger asChild>
                   <button
                     aria-pressed={isActive}
+                    aria-label={role.label}
                     onClick={() => onRoleChange(role.id)}
                     className={cn(
-                      "flex h-10 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-xs font-medium transition-all sm:h-8 sm:px-3",
+                      "flex h-11 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-xs font-medium transition-all lg:h-8 lg:px-3",
                       isActive
                         ? "bg-primary text-primary-foreground shadow-sm"
                         : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
@@ -95,7 +96,7 @@ export const ControlBar = ({
                 size="sm"
                 onClick={onSimulationToggle}
                 className={cn(
-                  "h-10 px-2.5 text-xs rounded-lg sm:h-8",
+                  "h-11 px-2.5 text-xs rounded-lg lg:h-8",
                   isSimulation && "bg-warning/20 text-warning hover:bg-warning/30 border border-warning/30"
                 )}
               >
@@ -114,7 +115,7 @@ export const ControlBar = ({
               <Button 
                 variant="ghost" 
                 size="sm"
-                className="h-10 px-2.5 gap-1.5 text-xs rounded-lg sm:h-8"
+                className="h-11 px-2.5 gap-1.5 text-xs rounded-lg lg:h-8"
                 disabled={isListening}
               >
                 <Globe className="w-3.5 h-3.5" />
@@ -146,7 +147,7 @@ export const ControlBar = ({
                 size="sm"
                 onClick={() => continuousListening.isEnabled ? continuousListening.disable() : continuousListening.enable()}
                 className={cn(
-                  "h-10 w-10 p-0 rounded-lg sm:h-8 sm:w-8",
+                  "h-11 w-11 p-0 rounded-lg lg:h-8 lg:w-8",
                   continuousListening.isEnabled && "bg-primary/20 text-primary hover:bg-primary/30",
                   continuousListening.isWakeWordDetected && "bg-primary text-primary-foreground animate-pulse"
                 )}

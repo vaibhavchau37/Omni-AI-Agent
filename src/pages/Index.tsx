@@ -106,6 +106,7 @@ const Index = () => {
   const conversationHistory = useRef<Array<{ role: "user" | "assistant"; content: string }>>([]);
   
   const { isListening, transcript, toggleListening, resetTranscript, setLanguage, currentLanguage } = useSpeechRecognition();
+  const speechLanguageInitialized = useRef(false);
   const { speak, stop, isSpeaking, setPreferredLanguage } = useTextToSpeech();
   const continuousListening = useContinuousListening();
 
@@ -138,7 +139,8 @@ const Index = () => {
   useEffect(() => { applyTextSize(settings.textSize); }, [settings.textSize]);
 
   useEffect(() => {
-    setLanguage(settings.language);
+    setLanguage(settings.language, speechLanguageInitialized.current);
+    speechLanguageInitialized.current = true;
     setPreferredLanguage(settings.language === "hi-IN" ? "hi" : settings.language === "en-US" ? "en" : "auto");
   }, [settings.language]);
 

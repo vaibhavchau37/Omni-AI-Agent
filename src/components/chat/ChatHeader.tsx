@@ -84,7 +84,7 @@ export const ChatHeader = ({
                 size="sm"
                 onClick={onExplainModeToggle}
                 className={cn(
-                  "h-11 w-10 px-1.5 gap-1.5 text-xs rounded-lg sm:h-8 sm:w-auto sm:px-2.5",
+                  "h-11 w-10 px-1.5 gap-1.5 text-xs rounded-lg lg:h-8 lg:w-auto lg:px-2.5",
                   explainMode && "text-primary bg-primary/10"
                 )}
               >
@@ -101,7 +101,7 @@ export const ChatHeader = ({
                 variant="ghost"
                 size="sm"
                 onClick={onOpenAnalytics}
-                className="h-11 w-10 px-1.5 gap-1.5 text-xs rounded-lg sm:h-8 sm:w-auto sm:px-2.5"
+                className="h-11 w-10 px-1.5 gap-1.5 text-xs rounded-lg lg:h-8 lg:w-auto lg:px-2.5"
               >
                 <BarChart3 className="w-3.5 h-3.5" />
                 <span className="hidden lg:inline">Analytics</span>
@@ -116,7 +116,7 @@ export const ChatHeader = ({
                 variant="ghost"
                 size="sm"
                 onClick={handleNewSession}
-                className="h-11 w-10 px-1.5 gap-1.5 text-xs rounded-lg sm:h-8 sm:w-auto sm:px-2.5"
+                className="h-11 w-10 px-1.5 gap-1.5 text-xs rounded-lg lg:h-8 lg:w-auto lg:px-2.5"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
                 <span className="hidden lg:inline">New Chat</span>
