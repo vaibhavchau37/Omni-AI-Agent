@@ -97,6 +97,7 @@ export const ChatInput = ({
         <Button
           onClick={onVoiceToggle}
           size="icon"
+          aria-label={isListening ? "Stop voice input" : "Start voice input"}
           className={cn(
             "h-11 w-11 shrink-0 rounded-xl transition-all sm:h-10 sm:w-10",
             isListening 
@@ -134,7 +135,7 @@ export const ChatInput = ({
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Ask anything — or say “make a PPT / Word file / landing page”"
+          placeholder="Ask anything in English or Hindi…"
           disabled={disabled}
           rows={1}
           aria-label="Message OmniAgent"
