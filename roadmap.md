@@ -1,2 +1,2 @@
-- [ ] Adapt the existing chat page, controls, and dedicated history sidebar for desktop, tablet, iOS, and Android.
+- [x] Adapt the existing chat page, controls, and dedicated history sidebar for desktop, tablet, iOS, and Android.
 - [ ] Verify page fit, navigation, and composer visibility at phone, tablet, and desktop sizes.

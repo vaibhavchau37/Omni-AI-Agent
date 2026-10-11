@@ -106,6 +106,7 @@ const Index = () => {
   const conversationHistory = useRef<Array<{ role: "user" | "assistant"; content: string }>>([]);
   
   const { isListening, transcript, toggleListening, resetTranscript, setLanguage, currentLanguage } = useSpeechRecognition();
+  const speechLanguageInitialized = useRef(false);
   const { speak, stop, isSpeaking, setPreferredLanguage } = useTextToSpeech();
   const continuousListening = useContinuousListening();
 
@@ -138,7 +139,8 @@ const Index = () => {
   useEffect(() => { applyTextSize(settings.textSize); }, [settings.textSize]);
 
   useEffect(() => {
-    setLanguage(settings.language);
+    setLanguage(settings.language, speechLanguageInitialized.current);
+    speechLanguageInitialized.current = true;
     setPreferredLanguage(settings.language === "hi-IN" ? "hi" : settings.language === "en-US" ? "en" : "auto");
   }, [settings.language]);
 
@@ -459,7 +461,7 @@ const Index = () => {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="flex h-[100dvh] min-h-0 overflow-hidden bg-background pt-[env(safe-area-inset-top)]">
       <ChatSidebar
         desktopOpen={sidebarOpen}
         mobileOpen={mobileSidebarOpen}
@@ -470,12 +472,12 @@ const Index = () => {
         onNewChat={handleClearSession}
         onOpenSettings={() => openSettings("general")}
       />
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
       {/* Header */}
       <ChatHeader 
         sidebarOpen={sidebarOpen}
         onToggleSidebar={() => {
-          if (window.matchMedia("(min-width: 768px)").matches) {
+          if (window.matchMedia("(min-width: 1024px)").matches) {
             setSidebarOpen((open) => !open);
           } else {
             setMobileSidebarOpen(true);
@@ -545,7 +547,7 @@ const Index = () => {
       />
       
       {/* Input Area */}
-      <div className="border-t border-border/30 p-2.5 sm:p-4 bg-background/95 backdrop-blur pb-[max(0.625rem,env(safe-area-inset-bottom))]">
+      <div className="shrink-0 border-t border-border/30 bg-background/95 px-2.5 py-2 backdrop-blur pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-4 sm:py-3">
         <div className="max-w-3xl mx-auto">
           <ChatInput
             onSend={handleSendMessage}

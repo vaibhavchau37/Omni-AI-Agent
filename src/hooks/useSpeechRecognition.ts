@@ -11,7 +11,7 @@ interface UseSpeechRecognitionReturn {
   stopListening: () => void;
   toggleListening: () => void;
   resetTranscript: () => void;
-  setLanguage: (lang: SupportedLanguage) => void;
+  setLanguage: (lang: SupportedLanguage, notify?: boolean) => void;
   currentLanguage: SupportedLanguage;
 }
 
@@ -113,7 +113,7 @@ export const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
     initRecognition("en-US");
   }, []);
 
-  const setLanguage = useCallback((lang: SupportedLanguage) => {
+  const setLanguage = useCallback((lang: SupportedLanguage, notify = true) => {
     setCurrentLanguage(lang);
     languageRef.current = lang;
     
@@ -126,15 +126,9 @@ export const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
     }
     
     initRecognition(recognitionLang);
+
+    if (!notify) return;
     
-    toast({
-      title: lang === "hi-IN" ? "हिंदी मोड सक्रिय" : lang === "en-US" ? "English Mode Active" : "Auto-Detect Mode",
-      description: lang === "auto" 
-        ? "बोलें हिंदी या English / Speak in Hindi or English" 
-        : lang === "hi-IN" 
-          ? "हिंदी में बोलें" 
-          : "Speak in English",
-    });
   }, [initRecognition]);
 
   const startListening = useCallback(() => {

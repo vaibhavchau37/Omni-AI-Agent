@@ -79,7 +79,7 @@ export const WelcomeScreen = ({ onFeatureClick, role = "default", displayName = 
         </div>
       </div>
 
-      <h2 className="font-display text-2xl sm:text-3xl font-bold text-foreground mb-1">
+      <h2 className="break-words px-2 font-display text-2xl sm:text-3xl font-bold text-foreground mb-1">
         {name ? (
           <>Welcome back, <span className="gradient-text">{name}</span></>
         ) : role === "default" ? (
@@ -98,7 +98,7 @@ export const WelcomeScreen = ({ onFeatureClick, role = "default", displayName = 
 
       {/* Quick Actions */}
       <p className="text-[11px] uppercase tracking-wide text-muted-foreground/90 mb-2">Start here</p>
-      <div className="grid grid-cols-2 gap-2 max-w-xl mx-auto px-2 sm:px-4">
+      <div className="grid grid-cols-1 gap-2 max-w-xl mx-auto px-2 sm:grid-cols-2 sm:px-4">
         {meta.quickActions.map((action) => { const ActionIcon = action.icon ?? RoleIcon; return (
           <button
             key={action.id}

@@ -236,7 +236,7 @@ export const ChatSidebar = ({
   return (
     <>
       {desktopOpen && (
-        <aside className="hidden h-full w-[272px] shrink-0 border-r border-border/50 md:flex">
+        <aside className="hidden h-full w-[272px] shrink-0 border-r border-border/50 lg:flex">
           {content}
         </aside>
       )}

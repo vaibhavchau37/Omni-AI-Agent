@@ -27,7 +27,7 @@ export const AccountMenu = ({ name, language, onLanguage, onOpenSettings, onGetH
     <DropdownMenuTrigger asChild>
       <button
         aria-label="Account and settings"
-        className="ml-1 w-8 h-8 rounded-full bg-secondary border border-border text-xs font-semibold text-foreground flex items-center justify-center hover:border-primary/50 transition-colors"
+        className="ml-0.5 h-11 w-11 shrink-0 rounded-full bg-secondary border border-border text-xs font-semibold text-foreground flex items-center justify-center hover:border-primary/50 transition-colors lg:ml-1 lg:h-8 lg:w-8"
       >
         {initials(name)}
       </button>

@@ -55,9 +55,9 @@ export const ControlBar = ({
 
   return (
     <div className="border-b border-border/30 px-3 sm:px-4 py-2">
-      <div className="max-w-4xl mx-auto flex items-center justify-between gap-3">
+      <div className="mx-auto flex w-full max-w-4xl flex-col items-stretch gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
         {/* Role Pills */}
-        <div className="flex items-center gap-1 p-0.5 rounded-full bg-secondary/50 border border-border/40 overflow-x-auto scrollbar-none min-w-0">
+        <div className="flex min-w-0 max-w-full items-center gap-1 overflow-x-auto rounded-full border border-border/40 bg-secondary/50 p-0.5 scrollbar-none">
           {roles.map((role) => {
             const Icon = role.icon;
             const isActive = agentRole === role.id;
@@ -67,16 +67,17 @@ export const ControlBar = ({
                 <TooltipTrigger asChild>
                   <button
                     aria-pressed={isActive}
+                    aria-label={role.label}
                     onClick={() => onRoleChange(role.id)}
                     className={cn(
-                      "flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full text-xs font-medium transition-all shrink-0",
+                      "flex h-11 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-xs font-medium transition-all lg:h-8 lg:px-3",
                       isActive
                         ? "bg-primary text-primary-foreground shadow-sm"
                         : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
                     )}
                   >
                     <Icon className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">{role.label}</span>
+                    <span className="hidden lg:inline">{role.label}</span>
                   </button>
                 </TooltipTrigger>
                 <TooltipContent>{role.title} — {role.tagline}</TooltipContent>
@@ -95,12 +96,12 @@ export const ControlBar = ({
                 size="sm"
                 onClick={onSimulationToggle}
                 className={cn(
-                  "h-8 px-2.5 text-xs rounded-lg",
+                  "h-11 px-2.5 text-xs rounded-lg lg:h-8",
                   isSimulation && "bg-warning/20 text-warning hover:bg-warning/30 border border-warning/30"
                 )}
               >
                 <FlaskConical className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline ml-1.5">Sandbox</span>
+                <span className="hidden lg:inline ml-1.5">Sandbox</span>
               </Button>
             </TooltipTrigger>
             <TooltipContent>Test without saving data</TooltipContent>
@@ -114,7 +115,7 @@ export const ControlBar = ({
               <Button 
                 variant="ghost" 
                 size="sm"
-                className="h-8 px-2.5 gap-1.5 text-xs rounded-lg"
+                className="h-11 px-2.5 gap-1.5 text-xs rounded-lg lg:h-8"
                 disabled={isListening}
               >
                 <Globe className="w-3.5 h-3.5" />
@@ -146,7 +147,7 @@ export const ControlBar = ({
                 size="sm"
                 onClick={() => continuousListening.isEnabled ? continuousListening.disable() : continuousListening.enable()}
                 className={cn(
-                  "h-8 w-8 p-0 rounded-lg",
+                  "h-11 w-11 p-0 rounded-lg lg:h-8 lg:w-8",
                   continuousListening.isEnabled && "bg-primary/20 text-primary hover:bg-primary/30",
                   continuousListening.isWakeWordDetected && "bg-primary text-primary-foreground animate-pulse"
                 )}
