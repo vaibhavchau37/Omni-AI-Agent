@@ -1,1 +1,1 @@
-- Keep chat-history navigation in a dedicated responsive `ChatSidebar`, with desktop navigation and a mobile sheet, so navigation stays separate from the conversation workspace.
+- Keep history in a dedicated `ChatSidebar`: show it persistently from 1024px upward and as a drawer below that, so the chat workspace stays clear on tablets and phones.

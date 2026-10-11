@@ -92,13 +92,13 @@ export const ChatInput = ({
         </div>
       )}
 
-      <div className="flex items-end gap-2 p-2 rounded-2xl bg-card border border-border/60 shadow-lg">
+      <div className="flex min-w-0 items-end gap-1.5 rounded-2xl border border-border/60 bg-card p-1.5 shadow-lg sm:gap-2 sm:p-2">
         {/* Voice Button */}
         <Button
           onClick={onVoiceToggle}
           size="icon"
           className={cn(
-            "h-10 w-10 rounded-xl shrink-0 transition-all",
+            "h-11 w-11 shrink-0 rounded-xl transition-all sm:h-10 sm:w-10",
             isListening 
               ? "bg-destructive text-destructive-foreground animate-pulse" 
               : "bg-primary text-primary-foreground hover:bg-primary/90"
@@ -122,7 +122,8 @@ export const ChatInput = ({
           variant="outline"
           disabled={disabled || attachments.length >= MAX_FILES}
           title="Attach image or document"
-          className="h-10 w-10 rounded-xl shrink-0"
+          aria-label="Attach an image or document"
+          className="h-11 w-11 shrink-0 rounded-xl sm:h-10 sm:w-10"
         >
           <Paperclip className="w-5 h-5" />
         </Button>
@@ -136,8 +137,9 @@ export const ChatInput = ({
           placeholder="Ask anything — or say “make a PPT / Word file / landing page”"
           disabled={disabled}
           rows={1}
-          className="flex-1 resize-none bg-transparent px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none disabled:opacity-50 scrollbar-thin"
-          style={{ minHeight: "40px" }}
+          aria-label="Message OmniAgent"
+          className="min-w-0 flex-1 resize-none bg-transparent px-2 py-2.5 text-base text-foreground placeholder:text-muted-foreground focus:outline-none disabled:opacity-50 scrollbar-thin sm:px-3 sm:text-sm"
+          style={{ minHeight: "44px" }}
         />
 
         {/* Send Button */}
@@ -145,13 +147,14 @@ export const ChatInput = ({
           onClick={handleSend}
           disabled={(!input.trim() && !attachments.length) || disabled}
           size="icon"
-          className="h-10 w-10 rounded-xl shrink-0"
+          aria-label="Send message"
+          className="h-11 w-11 shrink-0 rounded-xl sm:h-10 sm:w-10"
         >
           <Send className="w-5 h-5" />
         </Button>
       </div>
       
-      <p className="text-center text-[10px] text-muted-foreground/50">
+      <p className="hidden text-center text-[10px] text-muted-foreground/50 sm:block">
         <kbd className="px-1 py-0.5 rounded bg-muted/30 text-muted-foreground/70">Enter</kbd> send
         <span className="mx-1.5">•</span>
         <kbd className="px-1 py-0.5 rounded bg-muted/30 text-muted-foreground/70">Shift+Enter</kbd> new line

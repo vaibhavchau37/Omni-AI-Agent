@@ -14,8 +14,8 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ['Mukta', 'system-ui', 'sans-serif'],
-        display: ['"Baloo 2"', 'Mukta', 'sans-serif'],
+        sans: ['Figtree', 'system-ui', 'sans-serif'],
+        display: ['Outfit', 'Figtree', 'sans-serif'],
         mono: ['JetBrains Mono', 'monospace'],
       },
       colors: {
