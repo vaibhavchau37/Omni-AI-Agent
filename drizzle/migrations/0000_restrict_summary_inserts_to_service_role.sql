@@ -1,0 +1,1 @@
+ALTER POLICY "System insert summaries" ON public.conversation_summaries TO service_role WITH CHECK (true);
