@@ -55,7 +55,7 @@ export const ControlBar = ({
 
   return (
     <div className="border-b border-border/30 px-3 sm:px-4 py-2">
-      <div className="mx-auto flex w-full max-w-4xl flex-col items-stretch gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+      <div className="mx-auto flex w-full max-w-4xl flex-col items-stretch gap-1 lg:flex-row lg:items-center lg:justify-between lg:gap-3">
         {/* Role Pills */}
         <div className="flex min-w-0 max-w-full items-center gap-1 overflow-x-auto rounded-full border border-border/40 bg-secondary/50 p-0.5 scrollbar-none">
           {roles.map((role) => {
@@ -77,7 +77,7 @@ export const ControlBar = ({
                     )}
                   >
                     <Icon className="w-3.5 h-3.5" />
-                    <span className="hidden lg:inline">{role.label}</span>
+                      <span className={cn("hidden md:inline", isActive && "inline")}>{role.label}</span>
                   </button>
                 </TooltipTrigger>
                 <TooltipContent>{role.title} — {role.tagline}</TooltipContent>
@@ -101,7 +101,7 @@ export const ControlBar = ({
                 )}
               >
                 <FlaskConical className="w-3.5 h-3.5" />
-                <span className="hidden lg:inline ml-1.5">Sandbox</span>
+                <span className="hidden md:inline ml-1.5">Sandbox</span>
               </Button>
             </TooltipTrigger>
             <TooltipContent>Test without saving data</TooltipContent>
