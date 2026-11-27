@@ -1,3 +1,4 @@
 - [x] Adapt the existing chat page, controls, and dedicated history sidebar for desktop, tablet, iOS, and Android.
 - [x] Verify page fit, navigation, and composer visibility at phone, tablet, and desktop sizes.
 - [x] Remove Lovable's default tab icon and OmniAgent's name from the browser tab.
+- [x] Use the uploaded lightning symbol as the browser-tab icon.
